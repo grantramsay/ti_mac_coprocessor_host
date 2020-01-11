@@ -54,7 +54,10 @@ extern "C"
 // ****************************************************************************
 // includes
 // ****************************************************************************
-#include "hal_types.h"
+#include <stdbool.h>
+#include <stdint.h>
+
+//#include "hal_types.h"
 #include "npi_config.h"
 
 // ****************************************************************************
@@ -78,30 +81,30 @@ extern "C"
 //!
 //! \param[in]  len -
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_Read(uint16);
+uint16_t NPIRxBuf_Read(uint16_t);
 
 // -----------------------------------------------------------------------------
 //! \brief      Returns number of bytes that are unparsed in RxBuf
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_GetRxBufCount();
+uint16_t NPIRxBuf_GetRxBufCount();
 
 // -----------------------------------------------------------------------------
 //! \brief      Returns number of bytes that are available in RxBuf
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_GetRxBufAvail();
+uint16_t NPIRxBuf_GetRxBufAvail();
 
 // -----------------------------------------------------------------------------
 //! \brief      NPIRxBuf_ReadFromRxBuf
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_ReadFromRxBuf(uint8_t *buf, uint16 len);
+uint16_t NPIRxBuf_ReadFromRxBuf(uint8_t *buf, uint16_t len);
 
 #ifdef __cplusplus
 }

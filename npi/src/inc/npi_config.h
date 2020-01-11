@@ -59,7 +59,7 @@ extern "C"
 // includes
 // ****************************************************************************
 
-#include <ti_drivers_config.h>
+//#include <ti_drivers_config.h>
 
 // ****************************************************************************
 // defines
@@ -105,17 +105,18 @@ extern "C"
 #define NPI_SPI_PAYLOAD_SIZE    255
 #define NPI_SPI_HDR_LEN         4
 
-#ifdef NPI_USE_SPI
-#  if (NPI_TL_BUF_SIZE - NPI_SPI_HDR_LEN) < NPI_SPI_PAYLOAD_SIZE
-#    define NPI_MAX_FRAG_SIZE       (NPI_TL_BUF_SIZE - NPI_SPI_HDR_LEN)
-#  else
-#    define NPI_MAX_FRAG_SIZE       NPI_SPI_PAYLOAD_SIZE
-#  endif
-#elif NPI_USE_UART
-#  define NPI_MAX_FRAG_SIZE       NPI_TL_BUF_SIZE
-#else
-#  error "NPI ERROR: NPI_USE_UART or NPI_USE_SPI must be defined."
-#endif
+//#ifdef NPI_USE_SPI
+//#  if (NPI_TL_BUF_SIZE - NPI_SPI_HDR_LEN) < NPI_SPI_PAYLOAD_SIZE
+//#    define NPI_MAX_FRAG_SIZE       (NPI_TL_BUF_SIZE - NPI_SPI_HDR_LEN)
+//#  else
+//#    define NPI_MAX_FRAG_SIZE       NPI_SPI_PAYLOAD_SIZE
+//#  endif
+//#elif NPI_USE_UART
+//#  define NPI_MAX_FRAG_SIZE       NPI_TL_BUF_SIZE
+//#else
+//#  error "NPI ERROR: NPI_USE_UART or NPI_USE_SPI must be defined."
+//#endif
+#define NPI_MAX_FRAG_SIZE       NPI_TL_BUF_SIZE
 
 // ****************************************************************************
 // typedefs

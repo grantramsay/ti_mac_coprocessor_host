@@ -49,10 +49,10 @@
  *****************************************************************************/
 #include <string.h>
 
-#include "ti_drivers_config.h"
-#include "util_timer.h"
-#include <inc/hw_ccfg_simple_struct.h>
-#include <inc/hw_memmap.h>
+//#include "ti_drivers_config.h"
+//#include "util_timer.h"
+//#include <inc/hw_ccfg_simple_struct.h>
+//#include <inc/hw_memmap.h>
 
 #include "mt_mac.h"
 #include "mt_pkt.h"
@@ -88,7 +88,7 @@ static void sendLoopBack(Mt_mpb_t *pMpb);
 static void setCallbacks(Mt_mpb_t *pMpb);
 
 /* Utility functions */
-static void loopTimerCB(UArg a0);
+//static void loopTimerCB(UArg a0);
 static void sendARSP(uint8_t rspId, uint16_t rspLen, uint8_t *rspPtr);
 static void sendSRSP(uint8_t rspId, uint16_t rspLen, uint8_t *rspPtr);
 
@@ -103,9 +103,9 @@ static uint16_t loopLength;
 static uint8_t *pLoopData = NULL;
 
 /*! Clock handle for loopbacks */
-static Clock_Handle clkHandle;
+//static Clock_Handle clkHandle;
 /*! Clock structure for loopbacks */
-static Clock_Struct clkStruct;
+//static Clock_Struct clkStruct;
 
 /******************************************************************************
  Public Functions
@@ -115,35 +115,35 @@ static Clock_Struct clkStruct;
 
  Public function that is defined in mt_util.h
  */
-uint8_t MtUtil_commandProcessing(Mt_mpb_t *pMpb)
-{
-    uint8_t status = ApiMac_status_success;
-
-    switch (pMpb->cmd1)
-    {
-        case MT_UTIL_CALLBACK_SUB:
-            setCallbacks(pMpb);
-            break;
-
-        case MT_UTIL_LOOPBACK:
-            sendLoopBack(pMpb);
-            break;
-
-        case MT_UTIL_RANDOM:
-            getRandomNbr(pMpb);
-            break;
-
-        case MT_UTIL_EXT_ADDR:
-            getExtAddr(pMpb);
-            break;
-
-        default:
-            status = ApiMac_status_commandIDError;
-            break;
-    }
-
-    return(status);
-}
+//uint8_t MtUtil_commandProcessing(Mt_mpb_t *pMpb)
+//{
+//    uint8_t status = ApiMac_status_success;
+//
+//    switch (pMpb->cmd1)
+//    {
+//        case MT_UTIL_CALLBACK_SUB:
+//            setCallbacks(pMpb);
+//            break;
+//
+//        case MT_UTIL_LOOPBACK:
+//            sendLoopBack(pMpb);
+//            break;
+//
+//        case MT_UTIL_RANDOM:
+//            getRandomNbr(pMpb);
+//            break;
+//
+//        case MT_UTIL_EXT_ADDR:
+//            getExtAddr(pMpb);
+//            break;
+//
+//        default:
+//            status = ApiMac_status_commandIDError;
+//            break;
+//    }
+//
+//    return(status);
+//}
 
 /*!
  Initialize the MT UTIL command processor
@@ -153,7 +153,7 @@ uint8_t MtUtil_commandProcessing(Mt_mpb_t *pMpb)
 void MtUtil_init(void)
 {
     /* Allocate a loopback timer but don't start it */
-    clkHandle = Timer_construct(&clkStruct, loopTimerCB, 100, 0, false, 0);
+//    clkHandle = Timer_construct(&clkStruct, loopTimerCB, 100, 0, false, 0);
 }
 /******************************************************************************
  Local Functions
@@ -183,9 +183,9 @@ static void setCallbacks(Mt_mpb_t *pMpb)
 
         switch(subSys)
         {
-            case MTRPC_SYS_SYS:
-                bitMask = MtSys_setCallbacks(bitMask);
-                break;
+//            case MTRPC_SYS_SYS:
+//                bitMask = MtSys_setCallbacks(bitMask);
+//                break;
 
             case MTRPC_SYS_MAC:
                 bitMask = MtMac_setCallbacks(bitMask);
@@ -213,15 +213,15 @@ static void setCallbacks(Mt_mpb_t *pMpb)
  *
  * @param   pMpb - pointer to incoming message parameter block
  */
-static void getRandomNbr(Mt_mpb_t *pMpb)
-{
-    uint8_t retArray[sizeof(uint16_t)];
-
-    retArray[0] = ApiMac_randomByte();
-    retArray[1] = ApiMac_randomByte();
-
-    sendSRSP(MT_UTIL_RANDOM, sizeof(retArray), retArray);
-}
+//static void getRandomNbr(Mt_mpb_t *pMpb)
+//{
+//    uint8_t retArray[sizeof(uint16_t)];
+//
+//    retArray[0] = ApiMac_randomByte();
+//    retArray[1] = ApiMac_randomByte();
+//
+//    sendSRSP(MT_UTIL_RANDOM, sizeof(retArray), retArray);
+//}
 
 /*!
  * @brief   Process UTIL_EXT_ADDR command issued by host
@@ -243,15 +243,15 @@ static void getExtAddr(Mt_mpb_t *pMpb)
             ApiMac_mlmeGetReqArray(ApiMac_attribute_extendedAddress, &rsp[1]);
             break;
 
-        case 1:
-            /* Get TI factory address from INFO memory */
-            memcpy(&rsp[1], INFO_IEEE, APIMAC_SADDR_EXT_LEN);
-            break;
-
-        case 2:
-            /* Get User-Configured address from CCFG memory */
-            memcpy(&rsp[1], CCFG_IEEE, APIMAC_SADDR_EXT_LEN);
-            break;
+//        case 1:
+//            /* Get TI factory address from INFO memory */
+//            memcpy(&rsp[1], INFO_IEEE, APIMAC_SADDR_EXT_LEN);
+//            break;
+//
+//        case 2:
+//            /* Get User-Configured address from CCFG memory */
+//            memcpy(&rsp[1], CCFG_IEEE, APIMAC_SADDR_EXT_LEN);
+//            break;
 
         default:
             /* Return 0xFF and 0xFFFFFFFF for unknown */
@@ -304,11 +304,11 @@ static void sendLoopBack(Mt_mpb_t *pMpb)
                     /* And a copy of data to loopback later */
                     memcpy(pLoopData, pBuf, rspLen);
 
-                    /* Set up the callback timeout */
-                    Timer_setTimeout(clkHandle, timeout);
+//                    /* Set up the callback timeout */
+//                    Timer_setTimeout(clkHandle, timeout);
 
-                    /* Schedule the first callback */
-                    Timer_start(&clkStruct);
+//                    /* Schedule the first callback */
+//                    Timer_start(&clkStruct);
                 }
             }
         }
@@ -323,41 +323,41 @@ static void sendLoopBack(Mt_mpb_t *pMpb)
  *
  * @param   a0 - ignored
  */
-static void loopTimerCB(UArg a0)
-{
-    if(pLoopData != NULL)
-    {
-        if(loopCount > 0)
-        {
-            if(loopCount < 0xFF)
-            {
-                /* Not 'forever' - decrement repeat counter */
-                loopCount--;
-
-                /* Tell caller how many more times */
-                pLoopData[0] = loopCount;
-            }
-
-            /* Send an AREQ loopback */
-            sendARSP(MT_UTIL_LOOPBACK, loopLength, pLoopData);
-        }
-
-        if(loopCount > 0)
-        {
-            /* Schedule next callback */
-            Timer_start(&clkStruct);
-        }
-        else
-        {
-            /* No more callbacks */
-            Timer_stop(&clkStruct);
-
-            /* Give back the buffer */
-            MAP_ICall_free(pLoopData);
-            pLoopData = NULL;
-        }
-    }
-}
+//static void loopTimerCB(UArg a0)
+//{
+//    if(pLoopData != NULL)
+//    {
+//        if(loopCount > 0)
+//        {
+//            if(loopCount < 0xFF)
+//            {
+//                /* Not 'forever' - decrement repeat counter */
+//                loopCount--;
+//
+//                /* Tell caller how many more times */
+//                pLoopData[0] = loopCount;
+//            }
+//
+//            /* Send an AREQ loopback */
+//            sendARSP(MT_UTIL_LOOPBACK, loopLength, pLoopData);
+//        }
+//
+//        if(loopCount > 0)
+//        {
+//            /* Schedule next callback */
+//            Timer_start(&clkStruct);
+//        }
+//        else
+//        {
+//            /* No more callbacks */
+//            Timer_stop(&clkStruct);
+//
+//            /* Give back the buffer */
+//            MAP_ICall_free(pLoopData);
+//            pLoopData = NULL;
+//        }
+//    }
+//}
 
 /******************************************************************************
  Local Utility Functions

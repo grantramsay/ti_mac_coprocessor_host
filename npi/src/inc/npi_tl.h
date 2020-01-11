@@ -54,8 +54,11 @@ extern "C"
 // ****************************************************************************
 // includes
 // ****************************************************************************
-#include "hal_types.h"
-#include "inc/npi_config.h"
+#include <stdbool.h>
+#include <stdint.h>
+
+//#include "hal_types.h"
+#include "npi_config.h"
 
 // ****************************************************************************
 // defines
@@ -75,6 +78,9 @@ extern "C"
 #define transportStopTransfer NPITLSPI_stopTransfer
 #define transportMrdyEvent NPITLSPI_handleMrdyEvent
 #endif
+typedef void (*npiCB_t)(uint16_t Rxlen, uint16_t Txlen);
+void transportInit(uint8_t *tRxBuf, uint8_t *tTxBuf, npiCB_t npiCBack);
+uint16_t transportWrite(uint16_t len);
 
 // ****************************************************************************
 // typedefs
@@ -125,9 +131,9 @@ void NPITL_initTL(npiRtosCB_t npiCBTx, npiRtosCB_t npiCBRx, npiRtosCB_t npiCBMrd
 //! \param[in]  buf - Pointer to buffer to place read data.
 //! \param[in]  len - Number of bytes to read.
 //!
-//! \return     uint16 - the number of bytes read from transport
+//! \return     uint16_t - the number of bytes read from transport
 // -----------------------------------------------------------------------------
-uint16 NPITL_readTL(uint8 *buf, uint16 len);
+uint16_t NPITL_readTL(uint8_t *buf, uint16_t len);
 
 // -----------------------------------------------------------------------------
 //! \brief      This routine writes data from the buffer to the transport layer.
@@ -135,9 +141,9 @@ uint16 NPITL_readTL(uint8 *buf, uint16 len);
 //! \param[in]  buf - Pointer to buffer to write data from.
 //! \param[in]  len - Number of bytes to write.
 //!
-//! \return     uint16 - the number of bytes written to transport
+//! \return     uint16_t - the number of bytes written to transport
 // -----------------------------------------------------------------------------
-uint16 NPITL_writeTL(uint8 *buf, uint16 len);
+uint16_t NPITL_writeTL(uint8_t *buf, uint16_t len);
 
 // -----------------------------------------------------------------------------
 //! \brief      This routine is used to handle an MRDY edge from the application
@@ -151,23 +157,23 @@ void NPITL_handleMrdyEvent(void);
 // -----------------------------------------------------------------------------
 //! \brief      This routine returns the max size receive buffer.
 //!
-//! \return     uint16 - max size of the receive buffer
+//! \return     uint16_t - max size of the receive buffer
 // -----------------------------------------------------------------------------
-uint16 NPITL_getMaxRxBufSize(void);
+uint16_t NPITL_getMaxRxBufSize(void);
 
 // -----------------------------------------------------------------------------
 //! \brief      This routine returns the max size transmit buffer.
 //!
-//! \return     uint16 - max size of the transmit buffer
+//! \return     uint16_t - max size of the transmit buffer
 // -----------------------------------------------------------------------------
-uint16 NPITL_getMaxTxBufSize(void);
+uint16_t NPITL_getMaxTxBufSize(void);
 
 // -----------------------------------------------------------------------------
 //! \brief      Returns number of bytes that are unread in RxBuf
 //!
-//! \return     uint16 - number of unread bytes
+//! \return     uint16_t - number of unread bytes
 // -----------------------------------------------------------------------------
-uint16 NPITL_getRxBufLen(void);
+uint16_t NPITL_getRxBufLen(void);
 
 // -----------------------------------------------------------------------------
 //! \brief      This routine returns the state of transmission on NPI

@@ -50,6 +50,7 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 #ifndef __unix__
@@ -140,9 +141,9 @@ void Util_itoa(uint16_t num, uint8_t *buf, uint8_t radix)
  */
 unsigned char *Util_ltoa(uint32_t l, uint8_t *buf, uint8_t radix)
 {
-#if defined (__GNUC__) && !defined(__unix__)
-    return( (char *)ltoa(l, buf, radix) );
-#else
+//#if defined (__GNUC__) && !defined(__unix__)
+//    return( (char *)ltoa(l, buf, radix) );
+//#else
     unsigned char tmp1[10] = "", tmp2[10] = "", tmp3[10] = "";
     unsigned short num1, num2, num3;
     unsigned char i;
@@ -224,7 +225,7 @@ unsigned char *Util_ltoa(uint32_t l, uint8_t *buf, uint8_t radix)
     }
 
     return(buf);
-#endif
+//#endif
 }
 
 /*!
@@ -340,7 +341,7 @@ void Util_clearEvent(uint16_t *pEvent, uint16_t event)
     uint32_t key;
 
     /* Enter critical section */
-    key = HwiP_disable();
+//    key = HwiP_disable();
 #else
     _ATOMIC_global_lock();
 #endif
@@ -350,7 +351,7 @@ void Util_clearEvent(uint16_t *pEvent, uint16_t event)
 
     /* Exit critical section */
 #ifndef __unix__
-    HwiP_restore(key);
+//    HwiP_restore(key);
 #else
     _ATOMIC_global_unlock();
 #endif
@@ -367,7 +368,7 @@ void Util_setEvent(uint16_t *pEvent, uint16_t event)
     uint32_t key;
 
     /* Enter critical section */
-    key = HwiP_disable();
+//    key = HwiP_disable();
 #else
     _ATOMIC_global_lock();
 #endif
@@ -377,7 +378,7 @@ void Util_setEvent(uint16_t *pEvent, uint16_t event)
 
     /* Exit critical section */
 #ifndef __unix__
-    HwiP_restore(key);
+//    HwiP_restore(key);
 #else
     _ATOMIC_global_unlock();
 #endif

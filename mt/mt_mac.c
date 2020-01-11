@@ -247,6 +247,7 @@ static void macSbaToAdr(ApiMac_sAddr_t *pDst, uint8_t *pSrc);
 static void macSbaToSec(ApiMac_sec_t *pDst, uint8_t *pSrc);
 static void macSecToSba(uint8_t *pDst, ApiMac_sec_t *pSrc);
 static void parseOptBits(uint8_t optBits, ApiMac_txOptions_t *txOptions);
+static uint8_t *bufferOptBits(uint8_t *pBuf, const ApiMac_txOptions_t *txOptions);
 static void sendCRSP(uint8_t rId, uint16_t rLen, uint8_t *pRsp);
 static void sendDRSP(uint8_t rId, uint16_t rLen, uint8_t *pRsp);
 static void sendSRSP(uint8_t rId, uint8_t rsp);
@@ -540,13 +541,13 @@ static void macAssociateReq(Mt_mpb_t *pMpb)
         pBuf += 2;
 
         /* Capability Info bit mask */
-        ApiMac_buildMsgCapInfo(*pBuf++, &aReq.capabilityInformation);
+//        ApiMac_buildMsgCapInfo(*pBuf++, &aReq.capabilityInformation);
 
         /* Security parameters */
         macSbaToSec(&aReq.sec, pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeAssociateReq(&aReq);
+//        status = ApiMac_mlmeAssociateReq(&aReq);
     }
 
     /* Send host a response */
@@ -582,7 +583,7 @@ static void macAssociateRsp(Mt_mpb_t *pMpb)
         macSbaToSec(&aRsp.sec, pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeAssociateRsp(&aRsp);
+//        status = ApiMac_mlmeAssociateRsp(&aRsp);
     }
 
     /* Send host a response */
@@ -617,7 +618,7 @@ static void macAsyncReq(Mt_mpb_t *pMpb)
         memcpy(&aReq.channels, pBuf, APIMAC_154G_CHANNEL_BITMAP_SIZ);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeWSAsyncReq(&aReq);
+//        status = ApiMac_mlmeWSAsyncReq(&aReq);
     }
 
     /* Send host a response */
@@ -629,6 +630,63 @@ static void macAsyncReq(Mt_mpb_t *pMpb)
  *
  * @param   pMpb - pointer to incoming message parameter block
  */
+ApiMac_status_t ApiMac_mcpsDataReq(ApiMac_mcpsDataReq_t *pData)
+{
+    uint16_t len = sizeof(MtPkt_dataReq_t) + pData->msdu.len + pData->payloadIELen;
+    uint8_t buff[len];
+    uint8_t *pBuf = buff;
+
+    /* Destination address */
+    pBuf = macAdrToSba(pBuf, &pData->dstAddr);
+
+    /* Destination Pan ID */
+    pBuf = Util_bufferUint16(pBuf, pData->dstPanId);
+
+    /* Source address mode */
+    *pBuf++ = pData->srcAddrMode;
+
+    /* MSDU handle */
+    *pBuf++ = pData->msduHandle;
+
+    /* TX options bit mask */
+    pBuf = bufferOptBits(pBuf, &pData->txOptions);
+
+    /* TX channel */
+    *pBuf++ = pData->channel;
+
+    /* TX power */
+    *pBuf++ = pData->power;
+
+    /* Security parameters */
+    macSecToSba(pBuf, &pData->sec);
+    pBuf += MT_MAC_LEN_SECINFO;
+
+    /* Frequency hopping Protocol Dispatch - HARDWIRED FOR NOW */
+
+    /* Frequency hopping bitmask for IEs to include */
+    pBuf = Util_bufferUint32(pBuf, pData->includeFhIEs);
+
+    /* MSDU length */
+    pBuf = Util_bufferUint16(pBuf, pData->msdu.len);
+
+    /* Payload IE length */
+    pBuf = Util_bufferUint16(pBuf, pData->payloadIELen);
+
+    /* MSDU */
+    memcpy(pBuf, pData->msdu.p, pData->msdu.len);
+    pBuf += pData->msdu.len;
+
+    /* IE List */
+    memcpy(pBuf, pData->pIEList, pData->payloadIELen);
+
+    /* gpOffset and gpDuration - HARDWIRED FOR NOW */
+
+    /* Send request */
+    MT_sendResponse(MT_ARSP_MAC, MT_MAC_DATA_REQ, len, buff);
+
+    return ApiMac_status_success;
+}
+
 static void macDataReq(Mt_mpb_t *pMpb)
 {
     uint16_t dLen;
@@ -696,7 +754,7 @@ static void macDataReq(Mt_mpb_t *pMpb)
     if(pMpb->length == (sizeof(MtPkt_dataReq_t) + dLen))
     {
         /* Send request to the MAC task */
-        status = ApiMac_mcpsDataReq(&dReq);
+//        status = ApiMac_mcpsDataReq(&dReq);
     }
     else
     {
@@ -810,7 +868,7 @@ static void macDisassociateReq(Mt_mpb_t *pMpb)
         macSbaToSec(&dReq.sec, pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeDisassociateReq(&dReq);
+//        status = ApiMac_mlmeDisassociateReq(&dReq);
     }
 
     /* Send host a response */
@@ -829,7 +887,7 @@ static void macEnableFhReq(Mt_mpb_t *pMpb)
     if(pMpb->length == 0)
     {
         /* Try to enable frequency hopping */
-        status = ApiMac_enableFH();
+//        status = ApiMac_enableFH();
     }
 
     /* Send host a response */
@@ -858,8 +916,8 @@ static void macGetReq(Mt_mpb_t *pMpb)
         if(ApiMac_attribute_beaconPayload == attr)
         {
             /* get the length value first */
-            ApiMac_mlmeGetReqUint8(ApiMac_attribute_beaconPayloadLength,
-                                   (uint8_t*)&len);
+//            ApiMac_mlmeGetReqUint8(ApiMac_attribute_beaconPayloadLength,
+//                                   (uint8_t*)&len);
         }
 
         if(len > 0)
@@ -874,13 +932,13 @@ static void macGetReq(Mt_mpb_t *pMpb)
                 {
                   uint32_t pValue;
                   uint16_t len2;
-                  status = ApiMac_mlmeGetReqArrayLen(attr, (uint8_t*)&pValue,
-                                                     &len2);
-                  memcpy(&pRsp[1], (uint8_t*)pValue, len);
+//                  status = ApiMac_mlmeGetReqArrayLen(attr, (uint8_t*)&pValue,
+//                                                     &len2);
+//                  memcpy(&pRsp[1], (uint8_t*)pValue, len);
                 }
                 else
                 {
-                  status = ApiMac_mlmeGetReqArrayLen(attr, &pRsp[1], &len);
+//                  status = ApiMac_mlmeGetReqArrayLen(attr, &pRsp[1], &len);
                 }
 
                 /* Status code in first byte of response */
@@ -928,7 +986,7 @@ static void macGetFhReq(Mt_mpb_t *pMpb)
         attr = (ApiMac_FHAttribute_array_t)Util_parseUint16(pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeGetFhReqArrayLen(attr, &rsp[1], &len);
+//        status = ApiMac_mlmeGetFhReqArrayLen(attr, &rsp[1], &len);
     }
 
     /* Status code in first byte of response */
@@ -1298,7 +1356,7 @@ static void macOrphanRsp(Mt_mpb_t *pMpb)
         macSbaToSec(&oRsp.sec, pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeOrphanRsp(&oRsp);
+//        status = ApiMac_mlmeOrphanRsp(&oRsp);
     }
 
     /* Send host a response */
@@ -1334,7 +1392,7 @@ static void macPollReq(Mt_mpb_t *pMpb)
         macSbaToSec(&pReq.sec, pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmePollReq(&pReq);
+//        status = ApiMac_mlmePollReq(&pReq);
     }
 
     /* Send host a response */
@@ -1355,7 +1413,7 @@ static void macPurgeReq(Mt_mpb_t *pMpb)
         uint8_t *pBuf = pMpb->pData;
 
         /* Send request to the MAC task */
-        status = ApiMac_mcpsPurgeReq(*pBuf);
+//        status = ApiMac_mcpsPurgeReq(*pBuf);
     }
 
     /* Send host a response */
@@ -1407,7 +1465,7 @@ static void macResetReq(Mt_mpb_t *pMpb)
         uint8_t *pBuf = pMpb->pData;
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeResetReq(*pBuf);
+//        status = ApiMac_mlmeResetReq(*pBuf);
     }
 
     /* Send host a response */
@@ -1477,7 +1535,7 @@ static void macScanReq(Mt_mpb_t *pMpb)
         memcpy(&sReq.scanChannels, pBuf, APIMAC_154G_CHANNEL_BITMAP_SIZ);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeScanReq(&sReq);
+//        status = ApiMac_mlmeScanReq(&sReq);
     }
 
     /* Send host a response */
@@ -1502,7 +1560,7 @@ static void macSetReq(Mt_mpb_t *pMpb)
         attr = (ApiMac_attribute_array_t)*pBuf++;
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeSetReqArray(attr, pBuf);
+//        status = ApiMac_mlmeSetReqArray(attr, pBuf);
     }
 
     /* Send host a response */
@@ -1527,7 +1585,7 @@ static void macSetFhReq(Mt_mpb_t *pMpb)
         attr = (ApiMac_FHAttribute_array_t)Util_parseUint16(pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeSetFhReqArray(attr, &pBuf[2]);
+//        status = ApiMac_mlmeSetFhReqArray(attr, &pBuf[2]);
     }
 
     /* Send host a response */
@@ -1552,7 +1610,7 @@ static void macSetPanIdReq(Mt_mpb_t *pMpb)
         panId = Util_parseUint16(pBuf);
 
         /* Send request to the MAC task */
-        status = ApiMac_updatePanId(panId);
+//        status = ApiMac_updatePanId(panId);
     }
 
     /* Send host a response */
@@ -1772,7 +1830,7 @@ static void macStartReq(Mt_mpb_t *pMpb)
     if(pMpb->length == (sizeof(MtPkt_startReq_t) + sReq.mpmParams.numIEs))
     {
         /* Send request to the MAC task */
-        status = ApiMac_mlmeStartReq(&sReq);
+//        status = ApiMac_mlmeStartReq(&sReq);
     }
     else
     {
@@ -1796,7 +1854,7 @@ static void macStartFhReq(Mt_mpb_t *pMpb)
     if(pMpb->length == 0)
     {
         /* Try to start frequency hopping */
-        status = ApiMac_startFH();
+//        status = ApiMac_startFH();
     }
 
     /* Send host a response */
@@ -1830,7 +1888,7 @@ static void macSyncReq(Mt_mpb_t *pMpb)
         sReq.phyID = *pBuf;
 
         /* Send request to the MAC task */
-        status = ApiMac_mlmeSyncReq(&sReq);
+//        status = ApiMac_mlmeSyncReq(&sReq);
     }
 
     /* Send host a response */
@@ -1924,7 +1982,7 @@ void MtMac_AssociateInd(ApiMac_mlmeAssociateInd_t *pInd)
     pBuf = copyExtAdr(pBuf, pInd->deviceAddress);
 
     /* Capabilities */
-    *pBuf++ = ApiMac_convertCapabilityInfo(&pInd->capabilityInformation);
+//    *pBuf++ = ApiMac_convertCapabilityInfo(&pInd->capabilityInformation);
 
     /* Security */
     macSecToSba(pBuf, &pInd->sec);
@@ -3611,4 +3669,35 @@ static void parseOptBits(uint8_t optBits, ApiMac_txOptions_t *txOptions)
         txOptions->usePowerAndChannel = true;
     }
 }
+
+static uint8_t *bufferOptBits(uint8_t *pBuf, const ApiMac_txOptions_t *txOptions)
+{
+    uint8_t optBits = 0;
+    if (txOptions->ack)
+        optBits |= MT_MAC_TXOPTION_ACK;
+    /* MT_MAC_TXOPTION_GTS Not used */
+
+    if (txOptions->indirect)
+        optBits |= MT_MAC_TXOPTION_INDIRECT;
+
+    if (txOptions->pendingBit)
+        optBits |= MT_MAC_TXOPTION_PEND_BIT;
+
+    if (txOptions->noRetransmits)
+        optBits |= MT_MAC_TXOPTION_NO_RETRANS;
+
+    if (txOptions->noConfirm)
+        optBits |= MT_MAC_TXOPTION_NO_CNF;
+
+    if (txOptions->useAltBE)
+        optBits |= MT_MAC_TXOPTION_ALT_BE;
+
+    if (txOptions->usePowerAndChannel)
+        optBits |= MT_MAC_TXOPTION_PWR_CHAN;
+
+    *pBuf++ = optBits;
+
+    return pBuf;
+}
+
 #endif /* MT_MAC_FUNC */

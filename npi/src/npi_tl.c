@@ -48,19 +48,19 @@
 // includes
 // ****************************************************************************
 #include <string.h>
-#include <xdc/std.h>
-#include <ti/drivers/Power.h>
-#include <ti/drivers/power/PowerCC26XX.h>
-#include <ti/sysbios/family/arm/m3/Hwi.h>
-#include <ti/drivers/pin/PINCC26XX.h>
-#include <ti/sysbios/knl/Task.h>
-#include <ti/sysbios/knl/Swi.h>
-
-#include "inc/hw_memmap.h"
-#include "inc/hw_ints.h"
-#include <ti_drivers_config.h>
+//#include <xdc/std.h>
+//#include <ti/drivers/Power.h>
+//#include <ti/drivers/power/PowerCC26XX.h>
+//#include <ti/sysbios/family/arm/m3/Hwi.h>
+//#include <ti/drivers/pin/PINCC26XX.h>
+//#include <ti/sysbios/knl/Task.h>
+//#include <ti/sysbios/knl/Swi.h>
+//
+//#include "inc/hw_memmap.h"
+//#include "inc/hw_ints.h"
+//#include <ti_drivers_config.h>
 #include "mt.h"
-#include "hal_types.h"
+//#include "hal_types.h"
 #include "inc/npi_tl.h"
 #include "inc/npi_config.h"
 
@@ -68,13 +68,13 @@
 // defines
 // ****************************************************************************
 
-#if defined(NPI_USE_SPI)
-#include "inc/npi_tl_spi.h"
-#elif defined(NPI_USE_UART)
-#include "inc/npi_tl_uart.h"
-#else
-#error Must define an underlying serial bus for NPI
-#endif
+//#if defined(NPI_USE_SPI)
+//#include "inc/npi_tl_spi.h"
+//#elif defined(NPI_USE_UART)
+//#include "inc/npi_tl_uart.h"
+//#else
+//#error Must define an underlying serial bus for NPI
+//#endif
 
 
 // ****************************************************************************
@@ -86,19 +86,19 @@
 //*****************************************************************************
 
 //! \brief Flag for low power mode
-static volatile bool npiPMSetConstraint = FALSE;
+static volatile bool npiPMSetConstraint = false;
 
 //! \brief Flag for ongoing NPI TX
-static volatile bool npiTxActive = FALSE;
+static volatile bool npiTxActive = false;
 
 //! \brief The packet that was being sent when HWI of MRDY going low was received
-static volatile uint32 mrdyPktStamp = 0;
+static volatile uint32_t mrdyPktStamp = 0;
 
 //! \brief Packets transmitted counter
-static uint32 txPktCount = 0;
+static uint32_t txPktCount = 0;
 
 //! \brief NPI Transport Layer receive buffer
-static Char npiRxBuf[NPI_TL_BUF_SIZE];
+static uint8_t npiRxBuf[NPI_TL_BUF_SIZE];
 
 //! \brief Index to last byte written into NPI Transport Layer receive buffer
 static uint16_t npiRxBufTail = 0;
@@ -107,7 +107,7 @@ static uint16_t npiRxBufTail = 0;
 static uint16_t npiRxBufHead = 0;
 
 //! \brief NPI Transport Layer transmit buffer
-static Char npiTxBuf[NPI_TL_BUF_SIZE];
+static uint8_t npiTxBuf[NPI_TL_BUF_SIZE];
 
 //! \brief Number of bytes in NPI Transport Layer transmit buffer
 static uint16_t npiTxBufLen = 0;
@@ -119,10 +119,10 @@ static npiRtosCB_t taskTxCB = NULL;
 static npiRtosCB_t taskRxCB = NULL;
 
 //! \brief The remainder of any message that is fragmented
-static uint8 *msgFrag = NULL;
+static uint8_t *msgFrag = NULL;
 
 //! \brief The length of the remaining message fragment
-static uint16 msgFragLen = 0;
+static uint16_t msgFragLen = 0;
 
 #if (NPI_FLOW_CTRL == 1)
 //! \brief Call back function in NPI Task for MRDY hardware interrupt
@@ -144,7 +144,7 @@ static PIN_Handle hNpiHandshakePins;
 
 //! \brief No way to detect whether positive or negative edge with PIN Driver
 //!             Use a flag to keep track of state
-static uint8 mrdy_state;
+static uint8_t mrdy_state;
 #endif // NPI_FLOW_CTRL = 1
 
 //*****************************************************************************
@@ -153,7 +153,7 @@ static uint8 mrdy_state;
 
 //! \brief Call back function provided to underlying serial interface to be
 //              invoked upon the completion of a transmission
-static void NPITL_transmissionCallBack(uint16 Rxlen, uint16 Txlen);
+static void NPITL_transmissionCallBack(uint16_t Rxlen, uint16_t Txlen);
 
 #if (NPI_FLOW_CTRL == 1)
 //! \brief HWI interrupt function for MRDY
@@ -232,7 +232,7 @@ static void NPITL_setPM(void)
     // set constraints for Standby and idle mode
     Power_setConstraint(PowerCC26XX_SB_DISALLOW);
     Power_setConstraint(PowerCC26XX_IDLE_PD_DISALLOW);
-    npiPMSetConstraint = TRUE;
+    npiPMSetConstraint = true;
 }
 #endif // NPI_FLOW_CTRL = 1
 
@@ -251,7 +251,7 @@ static void NPITL_relPM(void)
     // release constraints for Standby and idle mode
     Power_releaseConstraint(PowerCC26XX_SB_DISALLOW);
     Power_releaseConstraint(PowerCC26XX_IDLE_PD_DISALLOW);
-    npiPMSetConstraint = FALSE;
+    npiPMSetConstraint = false;
 }
 #endif // NPI_FLOW_CTRL = 1
 
@@ -350,7 +350,7 @@ static void NPITL_MRDYPinHwiFxn(PIN_Handle hPin, PIN_Id pinId)
 //!
 //! \return     void
 // -----------------------------------------------------------------------------
-static void NPITL_transmissionCallBack(uint16 Rxlen, uint16 Txlen)
+static void NPITL_transmissionCallBack(uint16_t Rxlen, uint16_t Txlen)
 {
     npiRxBufHead = 0;
     npiRxBufTail = Rxlen;
@@ -364,7 +364,7 @@ static void NPITL_transmissionCallBack(uint16 Rxlen, uint16 Txlen)
     }
     if(Txlen)
     {
-        npiTxActive = FALSE;
+        npiTxActive = false;
         // Only perform call back if NPI Task has been registered
         // and if there is not another fragment to send of this message
         if ( taskTxCB && !msgFragLen )
@@ -396,9 +396,9 @@ static void NPITL_transmissionCallBack(uint16 Rxlen, uint16 Txlen)
 //! \param[in]  buf - Pointer to buffer to place read data.
 //! \param[in]  len - Number of bytes to read.
 //!
-//! \return     uint16 - the number of bytes read from transport
+//! \return     uint16_t - the number of bytes read from transport
 // -----------------------------------------------------------------------------
-uint16 NPITL_readTL(uint8 *buf, uint16 len)
+uint16_t NPITL_readTL(uint8_t *buf, uint16_t len)
 {
     // Only copy the lowest number between len and bytes remaining in buffer
     len = (len > NPITL_getRxBufLen()) ? NPITL_getRxBufLen() : len;
@@ -414,9 +414,9 @@ uint16 NPITL_readTL(uint8 *buf, uint16 len)
 //! \param[in]  buf - Pointer to buffer to write data from.
 //! \param[in]  len - Number of bytes to write.
 //!
-//! \return     uint16 - the number of bytes written to transport
+//! \return     uint16_t - the number of bytes written to transport
 // -----------------------------------------------------------------------------
-uint16 NPITL_writeTL(uint8 *buf, uint16 len)
+uint16_t NPITL_writeTL(uint8_t *buf, uint16_t len)
 {
     MAP_ICall_CSState key;
     key = MAP_ICall_enterCriticalSection();
@@ -445,7 +445,7 @@ uint16 NPITL_writeTL(uint8 *buf, uint16 len)
 
     memcpy(npiTxBuf, buf, len);
     npiTxBufLen = len;
-    npiTxActive = TRUE;
+    npiTxActive = true;
     txPktCount++;
 
     len = transportWrite(npiTxBufLen);
@@ -462,9 +462,9 @@ uint16 NPITL_writeTL(uint8 *buf, uint16 len)
 // -----------------------------------------------------------------------------
 //! \brief      This routine returns the max size receive buffer.
 //!
-//! \return     uint16 - max size of the receive buffer
+//! \return     uint16_t - max size of the receive buffer
 // -----------------------------------------------------------------------------
-uint16 NPITL_getMaxRxBufSize(void)
+uint16_t NPITL_getMaxRxBufSize(void)
 {
     return(NPI_TL_BUF_SIZE);
 }
@@ -472,9 +472,9 @@ uint16 NPITL_getMaxRxBufSize(void)
 // -----------------------------------------------------------------------------
 //! \brief      This routine returns the max size transmit buffer.
 //!
-//! \return     uint16 - max size of the transmit buffer
+//! \return     uint16_t - max size of the transmit buffer
 // -----------------------------------------------------------------------------
-uint16 NPITL_getMaxTxBufSize(void)
+uint16_t NPITL_getMaxTxBufSize(void)
 {
     return(NPI_TL_BUF_SIZE);
 }
@@ -482,9 +482,9 @@ uint16 NPITL_getMaxTxBufSize(void)
 // -----------------------------------------------------------------------------
 //! \brief      Returns number of bytes that are unread in RxBuf
 //!
-//! \return     uint16 - number of unread bytes
+//! \return     uint16_t - number of unread bytes
 // -----------------------------------------------------------------------------
-uint16 NPITL_getRxBufLen(void)
+uint16_t NPITL_getRxBufLen(void)
 {
     return ((npiRxBufTail - npiRxBufHead) + NPI_TL_BUF_SIZE) % NPI_TL_BUF_SIZE;
 }

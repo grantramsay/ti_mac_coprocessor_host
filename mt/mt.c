@@ -80,7 +80,8 @@ mtProcessMsg_t mtProcessIncoming[MTRPC_SYS_MAX] =
     NULL,                      /* MTRPC_SYS_RES0 */
 
 #if defined(MT_SYS_FUNC)
-    MtSys_commandProcessing,   /* MTRPC_SYS_SYS */
+//    MtSys_commandProcessing,   /* MTRPC_SYS_SYS */
+    NULL,
 #else
     NULL,
 #endif
@@ -100,7 +101,8 @@ mtProcessMsg_t mtProcessIncoming[MTRPC_SYS_MAX] =
     NULL,                      /* MTRPC_SYS_RESERVED06 */
 
 #if defined(MT_UTIL_FUNC)
-    MtUtil_commandProcessing,  /* MTRPC_SYS_UTIL */
+//    MtUtil_commandProcessing,  /* MTRPC_SYS_UTIL */
+    NULL,
 #else
     NULL,
 #endif
@@ -165,7 +167,7 @@ void MT_init(uint8_t entityID, uint8_t serviceID)
     MtUtil_init();
 
     /* Reset indication to host */
-    MtSys_resetInd();
+//    MtSys_resetInd();
 }
 
 /*!

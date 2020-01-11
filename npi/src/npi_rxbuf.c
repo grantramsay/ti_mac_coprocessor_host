@@ -48,12 +48,13 @@
 // includes
 // ****************************************************************************
 #include <string.h>
-#include <xdc/std.h>
+//#include <xdc/std.h>
 
-#include <ti_drivers_config.h>
-#include "hal_types.h"
-#include "inc/npi_config.h"
-#include "inc/npi_tl.h"
+//#include <ti_drivers_config.h>
+//#include "hal_types.h"
+#include "npi_rxbuf.h"
+#include "npi_config.h"
+#include "npi_tl.h"
 
 // ****************************************************************************
 // defines
@@ -73,9 +74,9 @@
 //*****************************************************************************
 
 //Receive Buffer for all NPI messages
-static uint8 RxBuf[NPI_TL_BUF_SIZE];
-static uint16 RxBufHead = 0;
-static uint16 RxBufTail = 0;
+static uint8_t RxBuf[NPI_TL_BUF_SIZE];
+static uint16_t RxBufHead = 0;
+static uint16_t RxBufTail = 0;
 
 //*****************************************************************************
 // function prototypes
@@ -86,11 +87,11 @@ static uint16 RxBufTail = 0;
 //!
 //! \param[in]  len -
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_Read(uint16 len)
+uint16_t NPIRxBuf_Read(uint16_t len)
 {
-    uint16 partialLen = 0;
+    uint16_t partialLen = 0;
 
     // Need to make two reads due to wrap around of circular buffer
     if ((len + RxBufTail) > NPI_TL_BUF_SIZE)
@@ -114,9 +115,9 @@ uint16 NPIRxBuf_Read(uint16 len)
 // -----------------------------------------------------------------------------
 //! \brief      Returns number of bytes that are unparsed in RxBuf
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_GetRxBufCount(void)
+uint16_t NPIRxBuf_GetRxBufCount(void)
 {
     return ((RxBufTail - RxBufHead) + NPI_TL_BUF_SIZE) % NPI_TL_BUF_SIZE;
 }
@@ -124,9 +125,9 @@ uint16 NPIRxBuf_GetRxBufCount(void)
 // -----------------------------------------------------------------------------
 //! \brief      Returns number of bytes that are available in RxBuf
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_GetRxBufAvail(void)
+uint16_t NPIRxBuf_GetRxBufAvail(void)
 {
     return (NPI_TL_BUF_SIZE - NPIRxBuf_GetRxBufCount());
 }
@@ -134,9 +135,9 @@ uint16 NPIRxBuf_GetRxBufAvail(void)
 // -----------------------------------------------------------------------------
 //! \brief      NPIRxBuf_ReadFromRxBuf
 //!
-//! \return     uint16 -
+//! \return     uint16_t -
 // -----------------------------------------------------------------------------
-uint16 NPIRxBuf_ReadFromRxBuf(uint8_t *buf, uint16 len)
+uint16_t NPIRxBuf_ReadFromRxBuf(uint8_t *buf, uint16_t len)
 {
 	uint16_t idx;
     for (idx = 0; idx < len; idx++)

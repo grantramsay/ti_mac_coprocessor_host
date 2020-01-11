@@ -54,8 +54,8 @@ extern "C"
 // ****************************************************************************
 // includes
 // ****************************************************************************
-#include "hal_types.h"
-#include "icall_osal_port_map.h"
+//#include "hal_types.h"
+//#include "icall_osal_port_map.h"
 
 // ****************************************************************************
 // defines
@@ -81,7 +81,7 @@ extern "C"
 //!
 //! \return     void
 // -----------------------------------------------------------------------------
-extern void NPIClient_saveLocalTaskInfo(ICall_EntityID localEntityID);
+//extern void NPIClient_saveLocalTaskInfo(ICall_EntityID localEntityID);
 
 
 #ifdef __cplusplus

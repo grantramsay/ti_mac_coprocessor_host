@@ -58,10 +58,10 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
 
-#include <ti/sysbios/knl/Clock.h>
-#include <ti/sysbios/knl/Semaphore.h>
-#include <ti/sysbios/knl/Task.h>
-#include <ti/sysbios/BIOS.h>
+//#include <ti/sysbios/knl/Clock.h>
+//#include <ti/sysbios/knl/Semaphore.h>
+//#include <ti/sysbios/knl/Task.h>
+//#include <ti/sysbios/BIOS.h>
 
 /*********************************************************************
  * MACROS
@@ -153,7 +153,7 @@ typedef void * OsalPort_MsgQ;
  *
  * @return  Task ID
  */
-uint8_t OsalPort_registerTask(Task_Handle taskHndl, Semaphore_Handle taskSem, uint32_t * pEvent);
+//uint8_t OsalPort_registerTask(Task_Handle taskHndl, Semaphore_Handle taskSem, uint32_t * pEvent);
 
 
 /*********************************************************************
@@ -288,7 +288,7 @@ uint32_t OsalPort_waitEvent(uint8_t taskId);
  *
  * @return  none
  */
-void OsalPort_blockOnEvent(Task_Handle taskHndl);
+//void OsalPort_blockOnEvent(Task_Handle taskHndl);
 
 /*********************************************************************
  * @fn      OsalPort_clearEvent
@@ -627,6 +627,8 @@ uint8_t OsalPort_isBufSet( uint8_t *buf, uint8_t val, uint8_t len );
  * @return  uint16 - new random number
  */
 uint16_t OsalPort_rand( void );
+
+int32_t OsalPort_allocatedMemoryBlockCount(void);
 
 /*********************************************************************
 *********************************************************************/
