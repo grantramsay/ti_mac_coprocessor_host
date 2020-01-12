@@ -112,7 +112,8 @@ extern NPIMSG_msg_t * NPIFrame_frameMsg(uint8_t *pIncomingMsg);
 //!
 //! \return     void
 // -----------------------------------------------------------------------------
-extern void NPIFrame_collectFrameData(void);
+//extern void NPIFrame_collectFrameData(void);
+void NPIFrame_receiveData(const uint8_t *data, uint16_t len);
 
 #ifdef __cplusplus
 }

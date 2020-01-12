@@ -6,7 +6,6 @@
 #include "api_mac.h"
 #include "mcp_host.h"
 #include "mt.h"
-#include "npi_tl.h"
 #include "osal_port.h"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
@@ -16,12 +15,9 @@
 #define MT_SRSP_MAC ((uint8_t)MTRPC_CMD_SREQ | (uint8_t)MTRPC_SYS_MAC)
 
 static void Mac_DataInd(ApiMac_mcpsDataInd_t *pInd);
+static void tx_data_callback(const uint8_t *data, uint16_t len);
 static void insert_mt_message(uint8_t *msg, uint16_t len);
 static uint8_t calcFCS(uint8_t *pMsg, uint16_t len);
-
-static npiCB_t transportCallback = NULL;
-static uint8_t *transportRxBuf = NULL;
-static uint8_t *transportTxBuf = NULL;
 
 /*!
  API MAC Callback table
@@ -67,7 +63,7 @@ static ApiMac_callbacks_t macCallbacks = {
 
 int main(void)
 {
-    mcp_host_init();
+    mcp_host_init(tx_data_callback);
 //    ApiMac_registerCallbacks(&macCallbacks);
 
     uint8_t dummy_rx_message[] = { MT_SOF, 0, MT_SRSP_MAC, MT_MAC_INIT_REQ };
@@ -114,36 +110,21 @@ static void Mac_DataInd(ApiMac_mcpsDataInd_t *pInd)
     (void)pInd;
 }
 
-void transportInit(uint8_t *tRxBuf, uint8_t *tTxBuf, npiCB_t npiCBack)
+static void tx_data_callback(const uint8_t *data, uint16_t len)
 {
-    transportRxBuf = tRxBuf;
-    transportTxBuf = tTxBuf;
-    transportCallback = npiCBack;
-}
-
-uint16_t transportWrite(uint16_t len)
-{
-    assert(transportCallback != NULL);
-    assert(transportTxBuf != NULL);
     printf("TX:");
     for (uint16_t i = 0; i < len; i++)
-        printf(" %02X", transportTxBuf[i]);
+        printf(" %02X", data[i]);
     printf("\n");
-
-    transportCallback(0, len);
-
-    return len;
 }
 
 static void insert_mt_message(uint8_t *msg, uint16_t len)
 {
-    assert(transportRxBuf != NULL);
-    assert(transportCallback != NULL);
-    assert(len + 1 < NPI_TL_BUF_SIZE);
-    memcpy(transportRxBuf, msg, len);
-    transportRxBuf[len] = calcFCS(transportRxBuf + 1, len - 1);
+    uint8_t buff[len + 1];
+    memcpy(buff, msg, len);
+    buff[len] = calcFCS(buff + 1, len - 1);
     len++;
-    transportCallback(len, 0);
+    mcp_host_receive_data(buff, len);
 }
 
 static uint8_t calcFCS(uint8_t *pMsg, uint16_t len)

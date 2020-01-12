@@ -52,7 +52,6 @@
 #include <string.h>
 #include "mt_rpc.h"
 #include "inc/npi_frame.h"
-#include "inc/npi_rxbuf.h"
 #include "mt.h"
 /******************************************************************************
  Constants and Definitions
@@ -199,14 +198,13 @@ NPIMSG_msg_t *NPIFrame_frameMsg(uint8_t *pIncomingMsg)
 //!
 //! \return     void
 // ----------------------------------------------------------------------------
-void NPIFrame_collectFrameData(void)
+void NPIFrame_receiveData(const uint8_t *data, uint16_t len)
 {
     uint8_t ch;
-    uint8_t uint8_tsInRxBuffer;
 
-    while (NPIRxBuf_GetRxBufCount())
+    while(len--)
     {
-        NPIRxBuf_ReadFromRxBuf(&ch, 1);
+        ch = *data++;
 
         switch (state)
         {
@@ -260,19 +258,18 @@ void NPIFrame_collectFrameData(void)
                 /* Fill in the buffer the first uint8_t of the data */
                 pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen++] = ch;
 
-                /* Check number of uint8_ts left in the Rx buffer */
-                uint8_tsInRxBuffer = NPIRxBuf_GetRxBufCount();
-
                 /* If the remain of the data is there, read them all, otherwise, just read enough */
-                if (uint8_tsInRxBuffer <= LEN_Token - tempDataLen)
+                if (len <= LEN_Token - tempDataLen)
                 {
-                    NPIRxBuf_ReadFromRxBuf(&pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen], uint8_tsInRxBuffer);
-                    tempDataLen += uint8_tsInRxBuffer;
+                    memcpy(&pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen], data, len);
+                    tempDataLen += len;
+                    len = 0;
                 }
                 else
                 {
-                    NPIRxBuf_ReadFromRxBuf(&pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen], LEN_Token - tempDataLen);
-                    tempDataLen += (LEN_Token - tempDataLen);
+                    memcpy(&pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen], data, LEN_Token - tempDataLen);
+                    tempDataLen += LEN_Token - tempDataLen;
+                    len -= LEN_Token - tempDataLen;
                 }
 
                 /* If number of uint8_ts read is equal to data length, time to move on to FCS */

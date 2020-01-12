@@ -38,9 +38,9 @@ set(MCP_HOST_SOURCE_FILES
 #        npi/src/inc/npi_tl_uart.h
 #        npi/src/npi_client_mt.c
         npi/src/npi_frame_mt.c
-        npi/src/npi_rxbuf.c
+#        npi/src/npi_rxbuf.c
 #        npi/src/npi_task.c
-        npi/src/npi_tl.c
+#        npi/src/npi_tl.c
 #        npi/src/npi_tl_spi.c
 #        npi/src/npi_tl_uart.c
 #        osal_port/api_mac.c

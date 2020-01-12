@@ -3,21 +3,22 @@
 
 #include "mt.h"
 #include "npi_frame.h"
-#include "npi_rxbuf.h"
-#include "npi_tl.h"
 #include "osal_port.h"
 
 static void incomingFrameCallback(uint8_t frameSize, uint8_t *pFrame, NPIMSG_Type msgType);
-static void transportTxCallback(int size);
-static void transportRxCallback(int size);
 
 static int32_t allocated_memory_block_count = 0;
-static uint8_t *lastQueuedTxMsg = NULL;
+static mcp_host_tx_data_callback_t tx_data_callback = NULL;
 
-void mcp_host_init(void)
+void mcp_host_init(mcp_host_tx_data_callback_t callback)
 {
-    NPITL_initTL(transportTxCallback, transportRxCallback, NULL);
+    tx_data_callback = callback;
     NPIFrame_initialize(incomingFrameCallback);
+}
+
+void mcp_host_receive_data(const uint8_t *data, uint16_t len)
+{
+    NPIFrame_receiveData(data, len);
 }
 
 void* OsalPort_malloc(uint32_t size)
@@ -76,33 +77,18 @@ uint8_t OsalPort_msgSend(uint8_t destinationTask, uint8_t *pMsg )
 {
     (void)destinationTask;
 
-    if (NPITL_checkNpiBusy()) {
-        MAP_ICall_freeMsg(pMsg);
-        return OsalPort_FAILURE;
-    }
-
     // NPIFrame_frameMsg always deallocates pMsg
     NPIMSG_msg_t *npiMsg = NPIFrame_frameMsg(pMsg);
     if (npiMsg == NULL)
         return OsalPort_FAILURE;
 
-    // npiMsg->pBuf is deallocated after TX complete.
-    lastQueuedTxMsg = npiMsg->pBuf;
+    if (tx_data_callback != NULL)
+        tx_data_callback(npiMsg->pBuf, npiMsg->pBufSize);
 
-    NPITL_writeTL(npiMsg->pBuf, npiMsg->pBufSize);
+    MAP_ICall_freeMsg(npiMsg->pBuf);
     MAP_ICall_free(npiMsg);
 
     return OsalPort_SUCCESS;
-}
-
-uint32_t OsalPort_enterCS(void)
-{
-    return 0;
-}
-
-void OsalPort_leaveCS(uint32_t key)
-{
-    (void)key;
 }
 
 int32_t OsalPort_allocatedMemoryBlockCount(void)
@@ -115,21 +101,4 @@ static void incomingFrameCallback(uint8_t frameSize, uint8_t *pFrame, NPIMSG_Typ
     (void)msgType;
     MT_processIncoming(pFrame);
     MAP_ICall_freeMsg(pFrame);
-}
-
-static void transportTxCallback(int size)
-{
-    (void)size;
-    if (lastQueuedTxMsg != NULL)
-    {
-        //Deallocate most recent message being transmitted.
-        MAP_ICall_freeMsg(lastQueuedTxMsg);
-        lastQueuedTxMsg = NULL;
-    }
-}
-
-static void transportRxCallback(int size)
-{
-    NPIRxBuf_Read(size);
-    NPIFrame_collectFrameData();
 }
