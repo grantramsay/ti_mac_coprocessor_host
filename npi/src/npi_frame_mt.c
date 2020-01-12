@@ -258,18 +258,22 @@ void NPIFrame_receiveData(const uint8_t *data, uint16_t len)
                 /* Fill in the buffer the first uint8_t of the data */
                 pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen++] = ch;
 
+                uint8_t remainingDataLen = LEN_Token - tempDataLen;
+
                 /* If the remain of the data is there, read them all, otherwise, just read enough */
-                if (len <= LEN_Token - tempDataLen)
+                if (len <= remainingDataLen)
                 {
                     memcpy(&pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen], data, len);
                     tempDataLen += len;
+                    data += len;
                     len = 0;
                 }
                 else
                 {
-                    memcpy(&pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen], data, LEN_Token - tempDataLen);
-                    tempDataLen += LEN_Token - tempDataLen;
-                    len -= LEN_Token - tempDataLen;
+                    memcpy(&pMsg[MTRPC_FRAME_HDR_SZ + tempDataLen], data, remainingDataLen);
+                    tempDataLen += remainingDataLen;
+                    data += remainingDataLen;
+                    len -= remainingDataLen;
                 }
 
                 /* If number of uint8_ts read is equal to data length, time to move on to FCS */

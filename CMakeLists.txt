@@ -10,5 +10,6 @@ add_executable(mcp_host_tests
         ${MCP_HOST_SOURCE_FILES})
 
 target_include_directories(mcp_host_tests PRIVATE ${MCP_HOST_INCLUDE_DIRS})
-
+# TODO: Add/fix warnings
+#target_compile_options(mcp_host_tests PRIVATE -Wall -Wextra -pedantic -Werror)
 target_compile_definitions(mcp_host_tests PRIVATE -DCOPROCESSOR -DOSAL_PORT2TIRTOS)

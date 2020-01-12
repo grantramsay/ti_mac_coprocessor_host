@@ -57,8 +57,8 @@
 //#include <ti/drivers/dpl/HwiP.h>
 #else
 #include "stdlib.h"
-#include "compiler.h"
-#include "hlos_specific.h"
+//#include "compiler.h"
+//#include "hlos_specific.h"
 #endif
 
 #include "mac_util.h"
@@ -343,7 +343,7 @@ void Util_clearEvent(uint16_t *pEvent, uint16_t event)
     /* Enter critical section */
 //    key = HwiP_disable();
 #else
-    _ATOMIC_global_lock();
+//    _ATOMIC_global_lock();
 #endif
 
     /* Clear the event */
@@ -353,7 +353,7 @@ void Util_clearEvent(uint16_t *pEvent, uint16_t event)
 #ifndef __unix__
 //    HwiP_restore(key);
 #else
-    _ATOMIC_global_unlock();
+//    _ATOMIC_global_unlock();
 #endif
 }
 
@@ -370,7 +370,7 @@ void Util_setEvent(uint16_t *pEvent, uint16_t event)
     /* Enter critical section */
 //    key = HwiP_disable();
 #else
-    _ATOMIC_global_lock();
+//    _ATOMIC_global_lock();
 #endif
 
     /* Set the event */
@@ -380,7 +380,7 @@ void Util_setEvent(uint16_t *pEvent, uint16_t event)
 #ifndef __unix__
 //    HwiP_restore(key);
 #else
-    _ATOMIC_global_unlock();
+//    _ATOMIC_global_unlock();
 #endif
 }
 

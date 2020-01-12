@@ -16,7 +16,7 @@ void mcp_host_init(mcp_host_tx_data_callback_t callback)
     NPIFrame_initialize(incomingFrameCallback);
 }
 
-void mcp_host_receive_data(const uint8_t *data, uint16_t len)
+void mcp_host_receive_data(const void *data, uint16_t len)
 {
     NPIFrame_receiveData(data, len);
 }

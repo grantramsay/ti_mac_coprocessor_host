@@ -186,10 +186,10 @@ static void setCallbacks(Mt_mpb_t *pMpb)
 //            case MTRPC_SYS_SYS:
 //                bitMask = MtSys_setCallbacks(bitMask);
 //                break;
-
-            case MTRPC_SYS_MAC:
-                bitMask = MtMac_setCallbacks(bitMask);
-                break;
+//
+//            case MTRPC_SYS_MAC:
+//                bitMask = MtMac_setCallbacks(bitMask);
+//                break;
 
             default:
                 rsp[0] = ApiMac_status_subSystemError;
@@ -238,11 +238,11 @@ static void getExtAddr(Mt_mpb_t *pMpb)
 
     switch(rsp[0])
     {
-        case 0:
-            /* Get address from the MAC */
-            ApiMac_mlmeGetReqArray(ApiMac_attribute_extendedAddress, &rsp[1]);
-            break;
-
+//        case 0:
+//            /* Get address from the MAC */
+//            ApiMac_mlmeGetReqArray(ApiMac_attribute_extendedAddress, &rsp[1]);
+//            break;
+//
 //        case 1:
 //            /* Get TI factory address from INFO memory */
 //            memcpy(&rsp[1], INFO_IEEE, APIMAC_SADDR_EXT_LEN);
