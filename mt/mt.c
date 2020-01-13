@@ -231,18 +231,18 @@ void MT_processIncoming(uint8_t *pBuf)
         }
     }
 
-    /* If there was an error... */
-    if(status != MTRPC_SUCCESS)
-    {
-        /* Send an RPC error response */
-        uint8_t rsp[MTRPC_FRAME_HDR_SZ];
-
-        rsp[0] = status;
-        rsp[1] = cmd0;
-        rsp[2] = cmd1;
-
-        (void)MT_sendResponse(MT_SRSP_RES0, 0, sizeof(rsp), rsp);
-    }
+//    /* If there was an error... */
+//    if(status != MTRPC_SUCCESS)
+//    {
+//        /* Send an RPC error response */
+//        uint8_t rsp[MTRPC_FRAME_HDR_SZ];
+//
+//        rsp[0] = status;
+//        rsp[1] = cmd0;
+//        rsp[2] = cmd1;
+//
+//        (void)MT_sendResponse(MT_SRSP_RES0, 0, sizeof(rsp), rsp);
+//    }
 }
 
 /*!

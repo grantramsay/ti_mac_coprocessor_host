@@ -202,7 +202,7 @@ void NPIFrame_receiveData(const uint8_t *data, uint16_t len)
 {
     uint8_t ch;
 
-    while(len--)
+    while (len--)
     {
         ch = *data++;
 

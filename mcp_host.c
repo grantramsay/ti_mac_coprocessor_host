@@ -13,6 +13,7 @@ static mcp_host_tx_data_callback_t tx_data_callback = NULL;
 void mcp_host_init(mcp_host_tx_data_callback_t callback)
 {
     tx_data_callback = callback;
+    MT_init(0, 0);
     NPIFrame_initialize(incomingFrameCallback);
 }
 
