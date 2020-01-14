@@ -72,6 +72,8 @@ extern "C"
 /*! RTOS assert reset request */
 #define MTSYS_ASSERT_RTOS  0x04
 
+typedef void (*MtSys_resetIndCallback_t)(uint8_t reason);
+
 /******************************************************************************
  Public Functions
  *****************************************************************************/
@@ -85,25 +87,14 @@ extern "C"
 extern uint8_t MtSys_commandProcessing(Mt_mpb_t *pMpb);
 
 /*!
- * @brief   Send an MT "reset response" message
- */
-extern void MtSys_resetInd(void);
-
-/*!
  * @brief   Process a "reset request"
- *
- * @param   reason - reason for the reset
  */
-extern void MtSys_resetReq(uint8_t reason);
+void MtSys_resetReq(void);
 
 /*!
- * @brief   Update enabled MT SYS callbacks
- *
- * @param   cbBits - bit mask of affected callbacks
- *
- * @return  Current MT SYS callback enabled bit mask
+ * @brief   ...
  */
-extern uint32_t MtSys_setCallbacks(uint32_t cbBits);
+void MtSys_registerResetIndCallback(MtSys_resetIndCallback_t callback);
 
 #ifdef __cplusplus
 }

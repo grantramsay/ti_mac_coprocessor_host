@@ -53,14 +53,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#ifndef __unix__
-//#include <ti/drivers/dpl/HwiP.h>
-#else
-#include "stdlib.h"
-//#include "compiler.h"
-//#include "hlos_specific.h"
-#endif
-
 #include "mac_util.h"
 #include "api_mac.h"
 

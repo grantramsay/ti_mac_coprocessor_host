@@ -47,9 +47,6 @@
 /******************************************************************************
  Includes
  *****************************************************************************/
-
-#include "npi_task.h"
-
 #include "mt.h"
 #include "mt_ext.h"
 #include "mt_mac.h"
@@ -80,8 +77,7 @@ mtProcessMsg_t mtProcessIncoming[MTRPC_SYS_MAX] =
     NULL,                      /* MTRPC_SYS_RES0 */
 
 #if defined(MT_SYS_FUNC)
-//    MtSys_commandProcessing,   /* MTRPC_SYS_SYS */
-    NULL,
+    MtSys_commandProcessing,   /* MTRPC_SYS_SYS */
 #else
     NULL,
 #endif
@@ -101,8 +97,7 @@ mtProcessMsg_t mtProcessIncoming[MTRPC_SYS_MAX] =
     NULL,                      /* MTRPC_SYS_RESERVED06 */
 
 #if defined(MT_UTIL_FUNC)
-//    MtUtil_commandProcessing,  /* MTRPC_SYS_UTIL */
-    NULL,
+    MtUtil_commandProcessing,  /* MTRPC_SYS_UTIL */
 #else
     NULL,
 #endif
@@ -119,19 +114,6 @@ mtProcessMsg_t mtProcessIncoming[MTRPC_SYS_MAX] =
 /******************************************************************************
  Local variables
  *****************************************************************************/
-#if defined(USE_ICALL)
-/*! ICall thread entity for NPI */
-static ICall_EntityID npiEID;
-
-/*! ICall thread service class for NPI */
-static ICall_ServiceEnum npiSID;
-#else
-uint8_t entityID;
-
-uint8_t npiEID;
-uint8_t npiSID;
-
-#endif
 
 /******************************************************************************
  Local function prototypes
@@ -147,27 +129,13 @@ static uint8_t sendNpiMessage(Mt_mpb_t *pMpb);
 
  Public function defined in mt.h
  */
-#if defined(USE_ICALL)
-void MT_init(ICall_EntityID entityID, ICall_ServiceEnum serviceID)
+void MT_init(void)
 {
-    /* ICall IDs for response messages */
-    npiEID = entityID;
-    npiSID = serviceID;
-#else
-void MT_init(uint8_t entityID, uint8_t serviceID)
-{
-    /* ICall IDs for response messages */
-    npiEID = entityID;
-    npiSID = serviceID;
-#endif
     /* Set up extended command processor */
     MtExt_init();
 
     /* Set up UTIL command processor */
     MtUtil_init();
-
-    /* Reset indication to host */
-//    MtSys_resetInd();
 }
 
 /*!
@@ -306,19 +274,7 @@ static uint8_t sendNpiMessage(Mt_mpb_t *pMpb)
         memcpy(&pRspMsg[MTRPC_POS_DAT0], pMpb->pData, dLen);
 
         // Send the message to NPI
-#if defined(USE_ICALL)
-        err = ICall_sendServiceMsg(npiEID, npiSID,
-                                   ICALL_MSG_FORMAT_KEEP, pRspMsg);
-#else
-
-#ifdef  OSAL_PORT2TIRTOS
-        err = OsalPort_msgSend(npiSID,pRspMsg);
-#else
-        NPITask_sendToHost(pRspMsg);
-        err = MTRPC_SUCCESS;
-#endif
-
-#endif
+        err = OsalPort_msgSend(pRspMsg);
     }
     else
     {

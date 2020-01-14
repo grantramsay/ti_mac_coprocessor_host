@@ -99,6 +99,7 @@ int main(void)
         .gpDuration = 0
     };
     ApiMac_status_t status = ApiMac_mcpsDataReq(&dataReq);
+    assert(status == ApiMac_status_success);
 
     printf("Allocated memory block count: %" PRId32 "\n", OsalPort_allocatedMemoryBlockCount());
 

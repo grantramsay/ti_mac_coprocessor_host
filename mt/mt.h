@@ -52,35 +52,12 @@
 
 #include "mt_rpc.h"
 
-#ifndef OSAL_PORT2TIRTOS
-#include "icall.h"
-#include "osal.h"
-#else
 #include "osal_port.h"
-#define ICall_Errno uint8_t
-#endif
 
-#ifndef OSAL_PORT2TIRTOS
-#define MAP_ICall_malloc                    ICall_malloc
-#define MAP_ICall_free                      ICall_free
-#define MAP_ICall_allocMsg                  ICall_allocMsg
-#define MAP_ICall_freeMsg                   ICall_freeMsg
-
-#define MAP_ICall_CSState                   ICall_CSState
-#define MAP_ICall_enterCriticalSection      ICall_enterCriticalSection
-#define MAP_ICall_leaveCriticalSection      ICall_leaveCriticalSection
-
-#else
 #define MAP_ICall_malloc                    OsalPort_malloc
 #define MAP_ICall_free                      OsalPort_free
 #define MAP_ICall_allocMsg                  OsalPort_msgAllocate
 #define MAP_ICall_freeMsg                   OsalPort_msgDeallocate
-
-#define MAP_ICall_CSState                   uint32_t
-#define MAP_ICall_enterCriticalSection      OsalPort_enterCS
-#define MAP_ICall_leaveCriticalSection      OsalPort_leaveCS
-
-#endif
 
 #ifdef __cplusplus
 extern "C"
@@ -327,15 +304,9 @@ typedef struct
  *****************************************************************************/
 /*!
  * @brief   Initialize the MT system for use with NPI system
- *
- * @param   entityID  - ICall application entity ID
- * @param   serviceID - ICall application service class ID
  */
-#if defined(USE_ICALL)
-extern void MT_init(ICall_EntityID entityID, ICall_ServiceEnum serviceID);
-#else
-extern void MT_init(uint8_t entityID, uint8_t serviceID);
-#endif
+extern void MT_init(void);
+
 /*!
  * @brief   Process incoming MT command messages
  *

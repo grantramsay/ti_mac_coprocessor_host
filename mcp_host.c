@@ -13,7 +13,7 @@ static mcp_host_tx_data_callback_t tx_data_callback = NULL;
 void mcp_host_init(mcp_host_tx_data_callback_t callback)
 {
     tx_data_callback = callback;
-    MT_init(0, 0);
+    MT_init();
     NPIFrame_initialize(incomingFrameCallback);
 }
 
@@ -74,10 +74,8 @@ uint8_t OsalPort_msgDeallocate( uint8_t *pMsg )
     return ( OsalPort_SUCCESS );
 }
 
-uint8_t OsalPort_msgSend(uint8_t destinationTask, uint8_t *pMsg )
+uint8_t OsalPort_msgSend(uint8_t *pMsg)
 {
-    (void)destinationTask;
-
     // NPIFrame_frameMsg always deallocates pMsg
     NPIMSG_msg_t *npiMsg = NPIFrame_frameMsg(pMsg);
     if (npiMsg == NULL)

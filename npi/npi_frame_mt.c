@@ -51,7 +51,7 @@
 
 #include <string.h>
 #include "mt_rpc.h"
-#include "inc/npi_frame.h"
+#include "npi_frame.h"
 #include "mt.h"
 /******************************************************************************
  Constants and Definitions

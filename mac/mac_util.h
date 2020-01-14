@@ -51,10 +51,6 @@
  *****************************************************************************/
 #include <stdint.h>
 
-#ifndef COPROCESSOR
-#include "ti_154stack_config.h"
-#endif
-
 #ifdef __cplusplus
 extern "C"
 {

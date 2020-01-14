@@ -12,7 +12,9 @@
 
 #include "api_mac.h"
 #include "mcp_host.h"
+#include "mt_sys.h"
 
+static void mt_sys_reset_ind_callback(uint8_t reason);
 static void mac_data_ind_callback(ApiMac_mcpsDataInd_t *pDataInd);
 static void mac_data_cnf_callback(ApiMac_mcpsDataCnf_t *pDataCnf);
 static void send_radio_tx(void *data, uint16_t len);
@@ -94,6 +96,7 @@ int main(int argc, char *argv[])
 
     mcp_host_init(tx_data_callback);
     ApiMac_registerCallbacks(&macCallbacks);
+    MtSys_registerResetIndCallback(mt_sys_reset_ind_callback);
 
     ApiMac_mlmeResetReq(true);
     usleep(50000);
@@ -142,6 +145,11 @@ int main(int argc, char *argv[])
     pthread_join(serial_read_thread, NULL);
 
     return EXIT_SUCCESS;
+}
+
+static void mt_sys_reset_ind_callback(uint8_t reason)
+{
+    fprintf(stderr, "Radio device has reset: %d\n", (int)reason);
 }
 
 static void mac_data_ind_callback(ApiMac_mcpsDataInd_t *pDataInd)

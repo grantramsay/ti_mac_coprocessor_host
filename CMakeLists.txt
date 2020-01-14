@@ -10,9 +10,7 @@ add_executable(mcp_host_tests
         ${MCP_HOST_SOURCE_FILES})
 
 target_include_directories(mcp_host_tests PRIVATE ${MCP_HOST_INCLUDE_DIRS})
-# TODO: Add/fix warnings
-#target_compile_options(mcp_host_tests PRIVATE -Wall -Wextra -pedantic -Werror)
-target_compile_definitions(mcp_host_tests PRIVATE -DCOPROCESSOR -DOSAL_PORT2TIRTOS)
+target_compile_options(mcp_host_tests PRIVATE -Wall -Wextra -pedantic -Werror)
 
 
 add_executable(posix_coprocessor_host
@@ -20,7 +18,5 @@ add_executable(posix_coprocessor_host
         ${MCP_HOST_SOURCE_FILES})
 
 target_include_directories(posix_coprocessor_host PRIVATE ${MCP_HOST_INCLUDE_DIRS})
-# TODO: Add/fix warnings
-#target_compile_options(posix_coprocessor_host PRIVATE -Wall -Wextra -pedantic -Werror)
-target_compile_definitions(posix_coprocessor_host PRIVATE -DCOPROCESSOR -DOSAL_PORT2TIRTOS)
+target_compile_options(posix_coprocessor_host PRIVATE -Wall -Wextra -pedantic -Werror)
 target_link_libraries(posix_coprocessor_host pthread)

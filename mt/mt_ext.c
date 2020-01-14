@@ -49,7 +49,6 @@
  *****************************************************************************/
 
 #include "api_mac.h"
-#include "npi_task.h"
 
 #include "mt.h"
 #include "mt_ext.h"
