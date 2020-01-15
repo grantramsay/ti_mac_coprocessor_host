@@ -53,11 +53,7 @@
 #include "mt_sys.h"
 #include "mt_util.h"
 
-/******************************************************************************
- Macros
- *****************************************************************************/
-/*! RPC_CMD response for MT_RES0 commands */
-#define MT_SRSP_RES0 ((uint8_t)MTRPC_CMD_SRSP | (uint8_t)MTRPC_SYS_RES0)
+#define SYNC_RESPONSE_WAIT_TIME_MS 50
 
 /******************************************************************************
  Typedefs
@@ -114,12 +110,21 @@ mtProcessMsg_t mtProcessIncoming[MTRPC_SYS_MAX] =
 /******************************************************************************
  Local variables
  *****************************************************************************/
+static osal_mutex_t sync_response_mutex;
+static osal_semaphore_t sync_response_semaphore;
+static volatile uint16_t sync_response_length;
+static void *sync_response_value;
+static uint16_t sync_response_max_length;
+static uint8_t sync_response_type;
+static uint8_t sync_response_cmd;
 
 /******************************************************************************
  Local function prototypes
  *****************************************************************************/
 /*! Format and send MT message to NPI via ICall */
 static uint8_t sendNpiMessage(Mt_mpb_t *pMpb);
+
+static void processSyncResponse(Mt_mpb_t *pMpb);
 
 /******************************************************************************
  Public Functions
@@ -134,8 +139,37 @@ void MT_init(void)
     /* Set up extended command processor */
     MtExt_init();
 
-    /* Set up UTIL command processor */
-    MtUtil_init();
+    osal_mutex_init(&sync_response_mutex);
+    osal_semaphore_init(&sync_response_semaphore);
+}
+
+void MT_deinit(void)
+{
+    osal_semaphore_deinit(&sync_response_semaphore);
+}
+
+bool MT_isAsyncCallback(const uint8_t *pBuf)
+{
+    bool res = false;
+    uint8_t cmd0 = pBuf[MTRPC_POS_CMD0];
+    uint8_t cmd1 = pBuf[MTRPC_POS_CMD1];
+    uint8_t subsys = (cmd0 & MTRPC_SUBSYSTEM_MASK);
+
+    switch (subsys) {
+        case MTRPC_SYS_SYS:
+            res = MtSys_isAsyncCallback(cmd1);
+            break;
+        case MTRPC_SYS_MAC:
+            res = MtMac_isAsyncCallback(cmd1);
+            break;
+        case MTRPC_SYS_UTIL:
+            res = MtUtil_isAsyncCallback(cmd1);
+            break;
+        case MTRPC_SYS_APP:
+        default:
+            break;
+    }
+    return res;
 }
 
 /*!
@@ -181,6 +215,7 @@ void MT_processIncoming(uint8_t *pBuf)
                     if(status == MTRPC_EXT_FRAGDONE)
                     {
                         /* Call processing function for extended message */
+                        // Extended message are never synchronous responses
                         status = (*func)(&mpb);
 
                         if(mpb.pData != NULL)
@@ -190,27 +225,18 @@ void MT_processIncoming(uint8_t *pBuf)
                         }
                     }
                 }
-                else
+                else if (MT_isAsyncCallback(pBuf))
                 {
                     /* Call processing function for standard message */
                     status = (*func)(&mpb);
                 }
+                else
+                {
+                    processSyncResponse(&mpb);
+                }
             }
         }
     }
-
-//    /* If there was an error... */
-//    if(status != MTRPC_SUCCESS)
-//    {
-//        /* Send an RPC error response */
-//        uint8_t rsp[MTRPC_FRAME_HDR_SZ];
-//
-//        rsp[0] = status;
-//        rsp[1] = cmd0;
-//        rsp[2] = cmd1;
-//
-//        (void)MT_sendResponse(MT_SRSP_RES0, 0, sizeof(rsp), rsp);
-//    }
 }
 
 /*!
@@ -241,6 +267,32 @@ uint8_t MT_sendResponse(uint8_t type, uint8_t cmd, uint16_t len, uint8_t *pRsp)
 
     /* Report dropped message */
     return(err);
+}
+
+bool MT_sendSyncRequest(uint8_t type, uint8_t cmd, uint16_t len, uint8_t *pReq,
+                        uint8_t resType, uint8_t resCmd, uint16_t *resLen, uint8_t *pRes)
+{
+    osal_mutex_lock(&sync_response_mutex);
+    // Ensure semaphore is cleared
+    while (osal_semaphore_try_wait(&sync_response_semaphore));
+    sync_response_length = 0;
+    sync_response_value = pRes;
+    sync_response_max_length = *resLen;
+    sync_response_type = resType;
+    sync_response_cmd = resCmd;
+    osal_mutex_unlock(&sync_response_mutex);
+
+    MT_sendResponse(type, cmd, len, pReq);
+
+    // Wait for response...
+    bool res = osal_semaphore_timed_wait(&sync_response_semaphore, SYNC_RESPONSE_WAIT_TIME_MS * 1000uL);
+
+    osal_mutex_lock(&sync_response_mutex);
+    *resLen = res ? sync_response_length : 0;
+    sync_response_value = NULL;
+    osal_mutex_unlock(&sync_response_mutex);
+
+    return res;
 }
 
 /******************************************************************************
@@ -284,4 +336,17 @@ static uint8_t sendNpiMessage(Mt_mpb_t *pMpb)
 
     /* Report dropped message */
     return(err);
+}
+
+static void processSyncResponse(Mt_mpb_t *pMpb) {
+    osal_mutex_lock(&sync_response_mutex);
+    // Checking semaphore count is to not overwrite the response if we've already posted one
+    if (osal_semaphore_get_value(&sync_response_semaphore) == 0 &&
+            pMpb->cmd0 == sync_response_type && pMpb->cmd1 == sync_response_cmd) {
+        sync_response_length = pMpb->length;
+        if (sync_response_value != NULL)
+            memcpy(sync_response_value, pMpb->pData, MIN(pMpb->length, sync_response_max_length));
+        osal_semaphore_post(&sync_response_semaphore);
+    }
+    osal_mutex_unlock(&sync_response_mutex);
 }

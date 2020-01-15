@@ -323,60 +323,6 @@ uint8_t *Util_bufferUint32(uint8_t *pBuf, uint32_t val)
 }
 
 /*!
-  Utility function to clear an event
-
- Public function defined in mac_util.h
- */
-void Util_clearEvent(uint16_t *pEvent, uint16_t event)
-{
-#ifndef __unix__
-    uint32_t key;
-
-    /* Enter critical section */
-//    key = HwiP_disable();
-#else
-//    _ATOMIC_global_lock();
-#endif
-
-    /* Clear the event */
-    *pEvent &= ~(event);
-
-    /* Exit critical section */
-#ifndef __unix__
-//    HwiP_restore(key);
-#else
-//    _ATOMIC_global_unlock();
-#endif
-}
-
-/*!
-  Utility function to set an event
-
- Public function defined in mac_util.h
- */
-void Util_setEvent(uint16_t *pEvent, uint16_t event)
-{
-#ifndef __unix__
-    uint32_t key;
-
-    /* Enter critical section */
-//    key = HwiP_disable();
-#else
-//    _ATOMIC_global_lock();
-#endif
-
-    /* Set the event */
-    *pEvent |= event;
-
-    /* Exit critical section */
-#ifndef __unix__
-//    HwiP_restore(key);
-#else
-//    _ATOMIC_global_unlock();
-#endif
-}
-
-/*!
   Utility function to copy the extended address
 
  Public function defined in mac_util.h

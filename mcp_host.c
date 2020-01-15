@@ -5,21 +5,95 @@
 #include "npi_frame.h"
 #include "osal_port.h"
 
+static void *rx_processing_thread_func(void *ptr);
 static void incomingFrameCallback(uint8_t frameSize, uint8_t *pFrame, NPIMSG_Type msgType);
 
+static bool rx_processing_thread_should_stop = false;
+static osal_thread_t rx_processing_thread;
+static osal_mutex_t rx_processing_mutex;
+static osal_semaphore_t rx_processing_semaphore;
+static uint8_t *async_msg_queue = NULL;
+static osal_mutex_t async_msg_mutex;
 static int32_t allocated_memory_block_count = 0;
 static mcp_host_tx_data_callback_t tx_data_callback = NULL;
+static mcp_host_processing_required_callback_t processing_required_callback = NULL;
 
-void mcp_host_init(mcp_host_tx_data_callback_t callback)
+static uint8_t rx_data_buffer[256];
+static uint16_t rx_data_buffer_len;
+
+void mcp_host_init(mcp_host_tx_data_callback_t tx_data_cb,
+                   mcp_host_processing_required_callback_t processing_required_cb)
 {
-    tx_data_callback = callback;
+    tx_data_callback = tx_data_cb;
+    processing_required_callback = processing_required_cb;
     MT_init();
     NPIFrame_initialize(incomingFrameCallback);
+
+    OsalPort_MSG_Q_INIT(&async_msg_queue);
+    rx_processing_thread_should_stop = false;
+    osal_mutex_init(&async_msg_mutex);
+    osal_mutex_init(&rx_processing_mutex);
+    osal_semaphore_init(&rx_processing_semaphore);
+    osal_thread_create(&rx_processing_thread, rx_processing_thread_func);
 }
 
-void mcp_host_receive_data(const void *data, uint16_t len)
+void mcp_host_deinit(void)
 {
-    NPIFrame_receiveData(data, len);
+    // Join processing thread
+    rx_processing_thread_should_stop = true;
+    osal_semaphore_post(&rx_processing_semaphore);
+    osal_thread_join(&rx_processing_thread);
+    osal_semaphore_deinit(&rx_processing_semaphore);
+
+    MT_deinit();
+
+    // Clear out message queue
+    uint8_t *pMsg = NULL;
+    osal_mutex_lock(&async_msg_mutex);
+    while (!OsalPort_MSG_Q_EMPTY(&async_msg_queue)) {
+        pMsg = OsalPort_MSG_Q_HEAD(&async_msg_queue);
+        async_msg_queue = OsalPort_MSG_NEXT(async_msg_queue);
+        OsalPort_msgDeallocate(pMsg);
+    }
+    osal_mutex_unlock(&async_msg_mutex);
+}
+
+uint16_t mcp_host_receive_data(const void *data, uint16_t len)
+{
+    osal_mutex_lock(&rx_processing_mutex);
+    if (rx_data_buffer_len == 0) {
+        len = MIN(len, sizeof(rx_data_buffer));
+        memcpy(rx_data_buffer, data, len);
+        rx_data_buffer_len = len;
+    } else {
+        len = 0;
+    }
+    osal_mutex_unlock(&rx_processing_mutex);
+
+    if (len > 0)
+        osal_semaphore_post(&rx_processing_semaphore);
+
+    return len;
+}
+
+void mcp_host_process_callbacks(void)
+{
+    while (true) {
+        uint8_t *pMsg = NULL;
+        // Iterate through the queue, processing each message
+        osal_mutex_lock(&async_msg_mutex);
+        if (!OsalPort_MSG_Q_EMPTY(&async_msg_queue)) {
+            pMsg = OsalPort_MSG_Q_HEAD(&async_msg_queue);
+            async_msg_queue = OsalPort_MSG_NEXT(async_msg_queue);
+        }
+        osal_mutex_unlock(&async_msg_mutex);
+        if (pMsg == NULL)
+            break;
+        else {
+            MT_processIncoming(pMsg);
+            OsalPort_msgDeallocate(pMsg);
+        }
+    }
 }
 
 void* OsalPort_malloc(uint32_t size)
@@ -95,9 +169,50 @@ int32_t OsalPort_allocatedMemoryBlockCount(void)
     return allocated_memory_block_count;
 }
 
+static void *rx_processing_thread_func(void *ptr)
+{
+    (void)ptr;
+    while (!rx_processing_thread_should_stop)
+    {
+        osal_semaphore_wait(&rx_processing_semaphore);
+        osal_mutex_lock(&rx_processing_mutex);
+        if (rx_data_buffer_len > 0) {
+            // TODO: This could probably benefit from using a circular buffer
+            //  Could then also unlock mutex when calling NPIFrame_receiveData
+            NPIFrame_receiveData(rx_data_buffer, rx_data_buffer_len);
+        }
+        rx_data_buffer_len = 0;
+        osal_mutex_unlock(&rx_processing_mutex);
+    }
+    return NULL;
+}
+
+static void queue_async_frame(uint8_t *pMsg)
+{
+    // Append to end of queue
+    osal_mutex_lock(&async_msg_mutex);
+    if (OsalPort_MSG_Q_EMPTY(&async_msg_queue)) {
+        OsalPort_MSG_Q_HEAD(&async_msg_queue) = pMsg;
+    } else {
+        uint8_t *msg_queue = async_msg_queue;
+        while (OsalPort_MSG_NEXT(msg_queue) != NULL)
+            msg_queue = OsalPort_MSG_NEXT(msg_queue);
+        OsalPort_MSG_NEXT(msg_queue) = pMsg;
+    }
+    osal_mutex_unlock(&async_msg_mutex);
+
+    if (processing_required_callback != NULL)
+        processing_required_callback();
+}
+
 static void incomingFrameCallback(uint8_t frameSize, uint8_t *pFrame, NPIMSG_Type msgType) {
-    (void)frameSize;
     (void)msgType;
-    MT_processIncoming(pFrame);
-    MAP_ICall_freeMsg(pFrame);
+    (void)frameSize;
+
+    if (MT_isAsyncCallback(pFrame))
+        queue_async_frame(pFrame);
+    else {
+        MT_processIncoming(pFrame);
+        MAP_ICall_freeMsg(pFrame);
+    }
 }

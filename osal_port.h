@@ -54,9 +54,29 @@ extern "C"
 /*********************************************************************
  * INCLUDES
  */
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+#include <pthread.h>
+typedef pthread_t osal_thread_t;
+typedef pthread_mutex_t osal_mutex_t;
+#if defined (__APPLE__)
+#include <dispatch/dispatch.h>
+typedef struct {
+    dispatch_semaphore_t sem;
+    int count;
+} osal_semaphore_t;
+#else
+#include <semaphore.h>
+typedef sem_t osal_semaphore_t;
+#endif
+#else
+#error "Unsupported OS"
+#endif
+
 
 /*********************************************************************
  * MACROS
@@ -204,6 +224,19 @@ void* OsalPort_malloc(uint32_t size);
 void OsalPort_free(void* buf);
 
 int32_t OsalPort_allocatedMemoryBlockCount(void);
+typedef void *(*osal_thread_func_t)(void *ptr);
+void osal_thread_create(osal_thread_t *thread, osal_thread_func_t func);
+void osal_thread_join(osal_thread_t *thread);
+void osal_mutex_init(osal_mutex_t *mutex);
+void osal_mutex_lock(osal_mutex_t *mutex);
+void osal_mutex_unlock(osal_mutex_t *mutex);
+void osal_semaphore_init(osal_semaphore_t *semaphore);
+void osal_semaphore_wait(osal_semaphore_t *semaphore);
+bool osal_semaphore_try_wait(osal_semaphore_t *semaphore);
+bool osal_semaphore_timed_wait(osal_semaphore_t *semaphore, uint32_t microseconds);
+int osal_semaphore_get_value(osal_semaphore_t *semaphore);
+void osal_semaphore_post(osal_semaphore_t *semaphore);
+void osal_semaphore_deinit(osal_semaphore_t *semaphore);
 
 /*********************************************************************
 *********************************************************************/

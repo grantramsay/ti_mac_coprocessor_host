@@ -87,14 +87,23 @@ typedef void (*MtSys_resetIndCallback_t)(uint8_t reason);
 extern uint8_t MtSys_commandProcessing(Mt_mpb_t *pMpb);
 
 /*!
- * @brief   Process a "reset request"
+ * @brief   Checks if command requires an asynchronous callback
+ *
+ * @param   cmd1 - RPC subsystem command ID number
+ *
+ * @return  bool - True if command requires an asynchronous callback
  */
-void MtSys_resetReq(void);
+extern bool MtSys_isAsyncCallback(uint8_t cmd1);
 
 /*!
  * @brief   ...
  */
-void MtSys_registerResetIndCallback(MtSys_resetIndCallback_t callback);
+extern void MtSys_registerResetIndCallback(MtSys_resetIndCallback_t callback);
+
+/*!
+ * @brief   Process a "reset request"
+ */
+extern void MtSys_resetReq(void);
 
 #ifdef __cplusplus
 }

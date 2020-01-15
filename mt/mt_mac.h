@@ -70,6 +70,15 @@ extern "C"
  */
 extern uint8_t MtMac_commandProcessing(Mt_mpb_t *pMpb);
 
+/*!
+ * @brief   Checks if command requires an asynchronous callback
+ *
+ * @param   cmd1 - RPC subsystem command ID number
+ *
+ * @return  bool - True if command requires an asynchronous callback
+ */
+extern bool MtMac_isAsyncCallback(uint8_t cmd1);
+
 #ifdef __cplusplus
 }
 #endif

@@ -241,22 +241,6 @@ extern uint8_t *Util_bufferUint16(uint8_t *pBuf, uint16_t val);
 extern uint8_t *Util_bufferUint32(uint8_t *pBuf, uint32_t val);
 
 /*!
- * @brief       Utility function to clear an event
- *
- * @param       pEvent - pointer to event variable
- * @param       event - event(s) to clear
- */
-extern void Util_clearEvent(uint16_t *pEvent, uint16_t event);
-
-/*!
- * @brief       Utility function to set an event
- *
- * @param       pEvent - pointer to event variable
- * @param       event - event(s) to clear
- */
-extern void Util_setEvent(uint16_t *pEvent, uint16_t event);
-
-/*!
  * @brief       Utility function to copy the extended address
  *
  * @param       pSrcAddr - pointer to source from which to be copied

@@ -69,7 +69,6 @@ uint8_t MtUtil_commandProcessing(Mt_mpb_t *pMpb)
     switch (pMpb->cmd1)
     {
         case MT_UTIL_LOOPBACK:
-            // TODO: Is this required or is response an ACK?
             break;
 
         default:
@@ -81,10 +80,11 @@ uint8_t MtUtil_commandProcessing(Mt_mpb_t *pMpb)
 }
 
 /*!
- Initialize the MT UTIL command processor
+ Checks if command requires an asynchronous callback
 
  Public function that is defined in mt_util.h
  */
-void MtUtil_init(void)
+bool MtUtil_isAsyncCallback(uint8_t cmd1)
 {
+    return (cmd1 == MT_UTIL_LOOPBACK);
 }

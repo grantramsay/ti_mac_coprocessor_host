@@ -101,6 +101,14 @@ typedef struct
     #define MT_UTIL_FUNC
 #endif
 
+#ifndef MIN
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+#ifndef MAX
+#define MAX(a,b) (((a)>(b))?(a):(b))
+#endif
+
+
 /******************************************************************************
  MT_MAC SubSystem Commands/Responses
  *****************************************************************************/
@@ -307,6 +315,10 @@ typedef struct
  */
 extern void MT_init(void);
 
+extern void MT_deinit(void);
+
+extern bool MT_isAsyncCallback(const uint8_t *pBuf);
+
 /*!
  * @brief   Process incoming MT command messages
  *
@@ -326,6 +338,9 @@ extern void MT_processIncoming(uint8_t *pBuf);
  */
 extern uint8_t MT_sendResponse(uint8_t type, uint8_t cmd,
                                uint16_t len, uint8_t *pRsp);
+
+bool MT_sendSyncRequest(uint8_t type, uint8_t cmd, uint16_t len, uint8_t *pReq,
+                        uint8_t resType, uint8_t resCmd, uint16_t *resLen, uint8_t *pRes);
 
 #ifdef __cplusplus
 }

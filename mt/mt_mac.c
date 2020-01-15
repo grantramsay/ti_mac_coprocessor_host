@@ -61,6 +61,8 @@
  *****************************************************************************/
 /*! AREQ RPC response for MT_MAC callbacks (indications/confirms) */
 #define MT_AREQ_MAC ((uint8_t)MTRPC_CMD_AREQ | (uint8_t)MTRPC_SYS_MAC)
+#define MT_SREQ_MAC ((uint8_t)MTRPC_CMD_SREQ | (uint8_t)MTRPC_SYS_MAC)
+#define MT_SRSP_MAC ((uint8_t)MTRPC_CMD_SRSP | (uint8_t)MTRPC_SYS_MAC)
 
 /******************************************************************************
  Constants
@@ -190,7 +192,7 @@
 /******************************************************************************
  Local Variables
  *****************************************************************************/
-static ApiMac_callbacks_t macCallbacks = { NULL };
+static ApiMac_callbacks_t macCallbacks = { 0 };
 
 /******************************************************************************
  Local Function Prototypes
@@ -205,27 +207,13 @@ static ApiMac_status_t setReq(uint8_t pibAttribute, const void *data, uint8_t le
 static void dataInd(uint8_t indType, const Mt_mpb_t *pMpb);
 
 /* General utility functions */
+static ApiMac_status_t syncRequestWithStatusReply(uint8_t cmd, uint16_t len, uint8_t *pReq);
 static uint8_t *copyExtAdr(uint8_t *pDst, uint8_t *pSrc);
 static uint8_t *macAdrToSba(uint8_t *pDst, ApiMac_sAddr_t *pSrc);
 static void macSbaToAdr(ApiMac_sAddr_t *pDst, uint8_t *pSrc);
 static void macSbaToSec(ApiMac_sec_t *pDst, uint8_t *pSrc);
 static void macSecToSba(uint8_t *pDst, ApiMac_sec_t *pSrc);
 static uint8_t *bufferTxOptBits(uint8_t *pBuf, const ApiMac_txOptions_t *txOptions);
-
-/******************************************************************************
- External Functions
- *****************************************************************************/
-extern ApiMac_status_t
-ApiMac_mlmeGetReqArrayLen(ApiMac_attribute_array_t attr,
-                          uint8_t* pVlaue, uint16_t* pLen);
-
-extern ApiMac_status_t
-ApiMac_mlmeGetFhReqArrayLen(ApiMac_FHAttribute_array_t attr,
-                            uint8_t* pVlaue, uint16_t* pLen);
-
-extern ApiMac_status_t
-ApiMac_mlmeGetSecurityReqArrayLen(ApiMac_securityAttribute_array_t attr,
-                                  uint8_t* pValue, uint16_t* pLen);
 
 /******************************************************************************
  Public Functions
@@ -265,6 +253,42 @@ uint8_t MtMac_commandProcessing(Mt_mpb_t *pMpb)
     }
 
     return status;
+}
+
+/*!
+ Checks if command requires an asynchronous callback
+
+ Public function that is defined in mt_mac.h
+ */
+bool MtMac_isAsyncCallback(uint8_t cmd1)
+{
+    bool res;
+    switch (cmd1)
+    {
+        case MT_MAC_SYNC_LOSS_IND:
+        case MT_MAC_ASSOCIATE_IND:
+        case MT_MAC_ASSOCIATE_CNF:
+        case MT_MAC_BEACON_NOTIFY_IND:
+        case MT_MAC_DATA_CNF:
+        case MT_MAC_DATA_IND:
+        case MT_MAC_DISASSOCIATE_IND:
+        case MT_MAC_DISASSOCIATE_CNF:
+        case MT_MAC_ORPHAN_IND:
+        case MT_MAC_POLL_CNF:
+        case MT_MAC_SCAN_CNF:
+        case MT_MAC_COMM_STATUS_IND:
+        case MT_MAC_START_CNF:
+        case MT_MAC_PURGE_CNF:
+        case MT_MAC_POLL_IND:
+        case MT_MAC_ASYNC_CNF:
+        case MT_MAC_ASYNC_IND:
+            res = true;
+            break;
+        default:
+            res = false;
+            break;
+    }
+    return res;
 }
 
 /******************************************************************************
@@ -327,9 +351,10 @@ ApiMac_status_t ApiMac_mcpsDataReq(ApiMac_mcpsDataReq_t *pData)
     /* gpOffset and gpDuration - HARDWIRED FOR NOW */
 
     /* Send request */
-    MT_sendResponse(MT_AREQ_MAC, MT_MAC_DATA_REQ, len, buff);
+    ApiMac_status_t status = syncRequestWithStatusReply(
+            MT_MAC_DATA_REQ, len, buff);
 
-    return ApiMac_status_success;
+    return status;
 }
 
 /*!
@@ -345,9 +370,121 @@ ApiMac_status_t ApiMac_mlmeResetReq(bool setDefaultPib)
     *pBuf = setDefaultPib;
 
     /* Send request */
-    MT_sendResponse(MT_AREQ_MAC, MT_MAC_DATA_REQ, sizeof(MtPkt_resetReq_t), buff);
+    ApiMac_status_t status = syncRequestWithStatusReply(
+            MT_MAC_RESET_REQ, sizeof(buff), buff);
 
-    return ApiMac_status_success;
+    return status;
+}
+
+/*!
+ * @brief   Process MAC_GET_REQ command issued by host
+ *
+ * @param   pMpb - pointer to incoming message parameter block
+ */
+static ApiMac_status_t getReq(uint8_t pibAttribute, void *data, uint8_t len)
+{
+    uint8_t req = (uint8_t)pibAttribute;
+    uint8_t responseBuff[1 + 16];
+    uint16_t responseLength = 1 + len;
+    memset(responseBuff, 0, sizeof(responseBuff));
+
+    if (len > 16)
+        return ApiMac_status_lengthError;
+
+    bool got_response = MT_sendSyncRequest(
+            MT_SREQ_MAC, MT_MAC_GET_REQ, 1, &req,
+            MT_SRSP_MAC, MT_MAC_GET_REQ, &responseLength, responseBuff);
+
+    ApiMac_status_t status = ApiMac_status_subSystemError;
+    if (got_response && responseLength >= 1) {
+        status = (ApiMac_status_t) responseBuff[0];
+        memcpy(data, responseBuff + 1, MIN(len, responseLength - 1));
+    }
+
+    return status;
+}
+
+/*!
+ * @brief       This direct execute function retrieves an attribute value from
+ *              the MAC PIB.
+ *
+ * @param       pibAttribute - The attribute identifier
+ * @param       pValue - pointer to the attribute value
+ *
+ * @return      The status of the request
+ */
+ApiMac_status_t ApiMac_mlmeGetReqBool(
+        ApiMac_attribute_bool_t pibAttribute,
+        bool *pValue)
+{
+    uint8_t value = 0;
+    ApiMac_status_t res = getReq(pibAttribute, &value, 1);
+    *pValue = (bool)value;
+    return res;
+}
+
+/*!
+ * @brief       This direct execute function retrieves an attribute value from
+ *              the MAC PIB.
+ *
+ * @param       pibAttribute - The attribute identifier
+ * @param       pValue - pointer to the attribute value
+ *
+ * @return      The status of the request
+ */
+ApiMac_status_t ApiMac_mlmeGetReqUint8(
+        ApiMac_attribute_uint8_t pibAttribute,
+        uint8_t *pValue)
+{
+    return getReq(pibAttribute, pValue, 1);
+}
+
+/*!
+ * @brief       This direct execute function retrieves an attribute value from
+ *              the MAC PIB.
+ *
+ * @param       pibAttribute - The attribute identifier
+ * @param       pValue - pointer to the attribute value
+ *
+ * @return      The status of the request
+ */
+ApiMac_status_t ApiMac_mlmeGetReqUint16(
+        ApiMac_attribute_uint16_t pibAttribute,
+        uint16_t *pValue)
+{
+    return getReq(pibAttribute, pValue, 2);
+}
+
+/*!
+ * @brief       This direct execute function retrieves an attribute value from
+ *              the MAC PIB.
+ *
+ * @param       pibAttribute - The attribute identifier
+ * @param       pValue - pointer to the attribute value
+ *
+ * @return      The status of the request
+ */
+ApiMac_status_t ApiMac_mlmeGetReqUint32(
+        ApiMac_attribute_uint32_t pibAttribute,
+        uint32_t *pValue)
+{
+    return getReq(pibAttribute, pValue, 4);
+}
+
+/*!
+ * @brief       This direct execute function retrieves an attribute value from
+ *              the MAC PIB.
+ *
+ * @param       pibAttribute - The attribute identifier
+ * @param       pValue - pointer to the attribute value
+ *
+ * @return      The status of the request
+ */
+ApiMac_status_t ApiMac_mlmeGetReqArray(
+        ApiMac_attribute_array_t pibAttribute,
+        uint8_t *pValue)
+{
+    return getReq(pibAttribute, pValue, 16);
 }
 
 /*!
@@ -357,10 +494,9 @@ ApiMac_status_t ApiMac_mlmeResetReq(bool setDefaultPib)
  */
 static ApiMac_status_t setReq(uint8_t pibAttribute, const void *data, uint8_t len)
 {
-    static const uint8_t setReqSize = sizeof(MtPkt_setReq_t) + 16;
-    uint8_t buff[setReqSize];
+    uint8_t buff[sizeof(MtPkt_setReq_t) + 16];
     uint8_t *pBuf = buff;
-    memset(pBuf, 0, setReqSize);
+    memset(pBuf, 0, sizeof(buff));
 
     if (len > 16)
         return ApiMac_status_lengthError;
@@ -369,15 +505,16 @@ static ApiMac_status_t setReq(uint8_t pibAttribute, const void *data, uint8_t le
     memcpy(pBuf, data, len);
 
     /* Send request */
-    MT_sendResponse(MT_AREQ_MAC, MT_MAC_SET_REQ, setReqSize, buff);
+    ApiMac_status_t status = syncRequestWithStatusReply(
+            MT_MAC_SET_REQ, sizeof(buff), buff);
 
-    return ApiMac_status_success;
+    return status;
 }
 
 ApiMac_status_t ApiMac_mlmeSetReqBool(ApiMac_attribute_bool_t pibAttribute,
                                       bool value)
 {
-    uint8_t valueUint8 = value;
+    uint8_t valueUint8 = (uint8_t)value;
     return setReq(pibAttribute, &valueUint8, 1);
 }
 
@@ -592,6 +729,23 @@ static void dataInd(uint8_t indType, const Mt_mpb_t *pMpb)
 /******************************************************************************
  Local Utility Functions
  *****************************************************************************/
+static ApiMac_status_t syncRequestWithStatusReply(uint8_t cmd, uint16_t len, uint8_t *pReq)
+{
+    uint8_t statusUint8 = 0;
+    uint16_t responseLength = 1;
+
+    bool got_response = MT_sendSyncRequest(
+            MT_SREQ_MAC, cmd, len, pReq,
+            MT_SRSP_MAC, cmd, &responseLength, &statusUint8);
+
+    ApiMac_status_t status = ApiMac_status_subSystemError;
+    if (got_response && responseLength >= 1) {
+        status = (ApiMac_status_t)statusUint8;
+    }
+
+    return status;
+}
+
 /*!
  * @brief   Copy extended address, return ptr to next destination byte
  *

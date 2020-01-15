@@ -110,6 +110,17 @@ uint8_t MtSys_commandProcessing(Mt_mpb_t *pMpb)
     return status;
 }
 
+
+/*!
+ Checks if command requires an asynchronous callback
+
+ Public function that is defined in mt_sys.h
+ */
+bool MtSys_isAsyncCallback(uint8_t cmd1)
+{
+    return (cmd1 == MT_SYS_RESET_REQ);
+}
+
 void MtSys_registerResetIndCallback(MtSys_resetIndCallback_t callback)
 {
     resetIndCallback = callback;

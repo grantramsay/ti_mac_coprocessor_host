@@ -14,6 +14,8 @@
 #include "mcp_host.h"
 #include "mt_sys.h"
 
+#define ASSERT_MAC_SUCCESS(MacCall) (assert(MacCall == ApiMac_status_success))
+
 static void mt_sys_reset_ind_callback(uint8_t reason);
 static void mac_data_ind_callback(ApiMac_mcpsDataInd_t *pDataInd);
 static void mac_data_cnf_callback(ApiMac_mcpsDataCnf_t *pDataCnf);
@@ -94,35 +96,37 @@ int main(int argc, char *argv[])
     tio.c_cc[VTIME] = 0;
     tcsetattr(serial_fd, TCSANOW, &tio);
 
-    mcp_host_init(tx_data_callback);
+    mcp_host_init(tx_data_callback, NULL);
     ApiMac_registerCallbacks(&macCallbacks);
     MtSys_registerResetIndCallback(mt_sys_reset_ind_callback);
-
-    ApiMac_mlmeResetReq(true);
-    usleep(50000);
-
-    ApiMac_mlmeSetReqUint8(ApiMac_attribute_phyCurrentDescriptorId, 3);
-    ApiMac_mlmeSetReqUint8(ApiMac_attribute_channelPage, 9);
-    ApiMac_mlmeSetReqUint8(ApiMac_attribute_logicalChannel, 0);
-    ApiMac_mlmeSetReqBool(ApiMac_attribute_RxOnWhenIdle, true);
-    ApiMac_mlmeSetReqBool(ApiMac_attribute_promiscuousMode, false);
-    ApiMac_mlmeSetReqBool(ApiMac_attribute_securityEnabled, false);
-    ApiMac_mlmeSetReqUint16(ApiMac_attribute_panId, pan_id);
-    ApiMac_mlmeSetReqUint16(ApiMac_attribute_shortAddress, short_address);
-
-    // CSMA backoff exponent
-    ApiMac_mlmeSetReqUint8(ApiMac_attribute_backoffExponent, 3);
-    ApiMac_mlmeSetReqUint8(ApiMac_attribute_maxBackoffExponent, 5);
-    ApiMac_mlmeSetReqUint8(ApiMac_attribute_maxFrameRetries, 5);
-    ApiMac_mlmeSetReqUint8(ApiMac_attribute_maxCsmaBackoffs, 5);
 
     pthread_t serial_read_thread;
     pthread_create(&serial_read_thread, NULL, serial_read_thread_function, NULL);
 
-    // Disable stdin canonical mode (buffered i/o)
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeResetReq(true));
+    usleep(50000);
+
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint8(ApiMac_attribute_phyCurrentDescriptorId, 3));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint8(ApiMac_attribute_channelPage, 9));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint8(ApiMac_attribute_logicalChannel, 0));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqBool(ApiMac_attribute_RxOnWhenIdle, true));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqBool(ApiMac_attribute_promiscuousMode, false));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqBool(ApiMac_attribute_securityEnabled, false));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint16(ApiMac_attribute_panId, pan_id));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint16(ApiMac_attribute_shortAddress, short_address));
+
+    // CSMA backoff exponent
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint8(ApiMac_attribute_backoffExponent, 3));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint8(ApiMac_attribute_maxBackoffExponent, 5));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint8(ApiMac_attribute_maxFrameRetries, 5));
+    ASSERT_MAC_SUCCESS(ApiMac_mlmeSetReqUint8(ApiMac_attribute_maxCsmaBackoffs, 5));
+
+    // Disable stdin canonical mode (buffered i/o), and set to non-blocking
     memset(&tio, 0, sizeof tio);
     tcgetattr(STDIN_FILENO, &tio);
-    tio.c_lflag &= ~ICANON; // ECHOE
+    tio.c_lflag &= ~ICANON;
+    tio.c_cc[VMIN] = 0;
+    tio.c_cc[VTIME] = 0;
     tcsetattr(STDIN_FILENO, TCSANOW, &tio);
 
     while (!finished) {
@@ -130,19 +134,21 @@ int main(int argc, char *argv[])
 
         uint8_t buf[64];
         int n = read(STDIN_FILENO, buf, sizeof(buf));
-        if (n > 0)
+        if (n > 0) {
             send_radio_tx(buf, n);
 
-//        if (n > 0) {
 //            uint8_t tx_buff[900];
-//            for (int i = 0; i < sizeof(tx_buff); i++)
+//            for (uint16_t i = 0; i < sizeof(tx_buff); i++)
 //                tx_buff[i] = (uint8_t)i;
 //            send_radio_tx(tx_buff, sizeof(tx_buff));
-//        }
+        }
+
+        mcp_host_process_callbacks();
     }
 
     close(serial_fd);
     pthread_join(serial_read_thread, NULL);
+    mcp_host_deinit();
 
     return EXIT_SUCCESS;
 }
@@ -166,6 +172,7 @@ static void mac_data_cnf_callback(ApiMac_mcpsDataCnf_t *pDataCnf)
             break;
         default:
             fprintf(stderr, "Data TX failed: %d\n", (int)pDataCnf->status);
+            break;
     }
 }
 
@@ -226,7 +233,10 @@ static void *serial_read_thread_function(void *ptr) {
         uint8_t buf[256];
         int n = read(serial_fd, buf, sizeof(buf));
         if (n > 0) {
-            mcp_host_receive_data(buf, n);
+            int processed_len = 0;
+            while (processed_len < n) {
+                processed_len += mcp_host_receive_data(buf + processed_len, n - processed_len);
+            }
 
 //            printf("RX:");
 //            for (uint16_t i = 0; i < n; i++)

@@ -8,6 +8,8 @@
 #include "mt.h"
 #include "osal_port.h"
 
+#include <unistd.h>
+
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
 
@@ -59,15 +61,25 @@ static ApiMac_callbacks_t macCallbacks = {
     NULL
 };
 
+static volatile int dataCnfReceived;
+
 int main(void)
 {
-    mcp_host_init(tx_data_callback);
+    mcp_host_init(tx_data_callback, NULL);
     ApiMac_registerCallbacks(&macCallbacks);
 
-//    insert_mt_message(MT_SRSP_MAC, MT_MAC_INIT_REQ, NULL, 0);
-
+    dataCnfReceived = 0;
     uint8_t dataCnfBuff[] = { 0, 0x12, 0x67, 0x45, 0x23, 0x01, 0xAB, 0x89, 0x00, 0x01, 0x01, 0x7F, 0x67, 0x45, 0x23, 0x01 };
     insert_mt_message(MT_SRSP_MAC, MT_MAC_DATA_CNF, dataCnfBuff, sizeof(dataCnfBuff));
+    insert_mt_message(MT_SRSP_MAC, MT_MAC_DATA_CNF, dataCnfBuff, sizeof(dataCnfBuff));
+    insert_mt_message(MT_SRSP_MAC, MT_MAC_DATA_CNF, dataCnfBuff, sizeof(dataCnfBuff));
+    // Allow RX thread time to process
+    usleep(10000);
+
+    // Data conf should be processed as async callback in mcp_host_process_callbacks
+    assert(dataCnfReceived == 0);
+    mcp_host_process_callbacks();
+    assert(dataCnfReceived == 3);
 
     uint16_t pan_id = 0x1234;
     uint16_t msdu_handle = 0x12;
@@ -98,10 +110,11 @@ int main(void)
         .gpOffset = 0,
         .gpDuration = 0
     };
-    ApiMac_status_t status = ApiMac_mcpsDataReq(&dataReq);
-    assert(status == ApiMac_status_success);
+    ApiMac_mcpsDataReq(&dataReq);
 
     printf("Allocated memory block count: %" PRId32 "\n", OsalPort_allocatedMemoryBlockCount());
+
+    mcp_host_deinit();
 
     return EXIT_SUCCESS;
 }
@@ -114,6 +127,7 @@ static void Mac_DataInd(ApiMac_mcpsDataInd_t *pInd)
 static void Mac_DataCnf(ApiMac_mcpsDataCnf_t *pDataCnf)
 {
     (void)pDataCnf;
+    dataCnfReceived++;
 }
 
 static void tx_data_callback(const void *data, uint16_t len)
@@ -134,7 +148,11 @@ static void insert_mt_message(uint8_t cmd0, uint8_t cmd1, const uint8_t *msg, ui
     buff[3] = cmd1;
     memcpy(buff + 4, msg, len);
     buff[packet_len - 1] = calcFCS(buff + 1, len + MTRPC_FRAME_HDR_SZ);
-    mcp_host_receive_data(buff, packet_len);
+
+    int processed_len = 0;
+    while (processed_len < packet_len) {
+        processed_len += mcp_host_receive_data(buff + processed_len, packet_len - processed_len);
+    }
 }
 
 static uint8_t calcFCS(const uint8_t *pMsg, uint16_t len)
