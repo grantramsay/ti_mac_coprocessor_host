@@ -11,17 +11,14 @@ extern "C"
 #endif
 
 typedef void (*mcp_host_tx_data_callback_t)(const void *data, uint16_t len);
-typedef void (*mcp_host_processing_required_callback_t)(void);
+typedef int (*mcp_host_rx_data_callback_t)(void *data, uint16_t *len, int wait_time_us);
 
 void mcp_host_init(mcp_host_tx_data_callback_t tx_data_callback,
-                   mcp_host_processing_required_callback_t processing_required_callback);
+                   mcp_host_rx_data_callback_t rx_data_callback);
 
 void mcp_host_deinit(void);
 
-uint16_t mcp_host_receive_data(const void *data, uint16_t len);
-
-// Must be called on same thread as MAC API
-void mcp_host_process_callbacks(void);
+void mcp_host_update(void);
 
 #ifdef __cplusplus
 }

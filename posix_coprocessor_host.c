@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/time.h>
 
 #include "api_mac.h"
 #include "mcp_host.h"
@@ -21,6 +22,7 @@ static void mac_data_ind_callback(ApiMac_mcpsDataInd_t *pDataInd);
 static void mac_data_cnf_callback(ApiMac_mcpsDataCnf_t *pDataCnf);
 static void send_radio_tx(void *data, uint16_t len);
 static void tx_data_callback(const void *data, uint16_t len);
+static int rx_data_callback(void *data, uint16_t *len, int wait_time_us);
 static void *serial_read_thread_function(void *ptr);
 static void sigint_handler(int sig);
 static int serial_set_interface_attribs(int fd, int speed, int parity);
@@ -68,6 +70,12 @@ static int serial_fd;
 static uint16_t pan_id = 0x7455;
 static volatile bool finished = false;
 
+static pthread_mutex_t rx_data_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t rx_data_cond = PTHREAD_COND_INITIALIZER;
+static uint16_t rx_data_packet_len;
+static uint16_t rx_data_packet_index;
+static uint8_t rx_data_buf[1024];
+
 int main(int argc, char *argv[])
 {
     if (argc < 2) {
@@ -96,7 +104,7 @@ int main(int argc, char *argv[])
     tio.c_cc[VTIME] = 0;
     tcsetattr(serial_fd, TCSANOW, &tio);
 
-    mcp_host_init(tx_data_callback, NULL);
+    mcp_host_init(tx_data_callback, rx_data_callback);
     ApiMac_registerCallbacks(&macCallbacks);
     MtSys_registerResetIndCallback(mt_sys_reset_ind_callback);
 
@@ -143,11 +151,12 @@ int main(int argc, char *argv[])
 //            send_radio_tx(tx_buff, sizeof(tx_buff));
         }
 
-        mcp_host_process_callbacks();
+        mcp_host_update();
     }
 
     close(serial_fd);
     pthread_join(serial_read_thread, NULL);
+    pthread_cond_destroy(&rx_data_cond);
     mcp_host_deinit();
 
     return EXIT_SUCCESS;
@@ -178,7 +187,8 @@ static void mac_data_cnf_callback(ApiMac_mcpsDataCnf_t *pDataCnf)
 
 static void send_radio_tx(void *data, uint16_t len)
 {
-    static uint8_t msdu_handle = 1;
+    static uint8_t msdu_handle = 0;
+    msdu_handle++;
     if (msdu_handle == 0)
         msdu_handle++;
 
@@ -213,16 +223,43 @@ static void send_radio_tx(void *data, uint16_t len)
 
 static void tx_data_callback(const void *data, uint16_t len)
 {
-    static pthread_mutex_t write_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&write_mutex);
-
 //    printf("TX:");
 //    for (uint16_t i = 0; i < len; i++)
 //        printf(" %02X", ((uint8_t*)data)[i]);
 //    printf("\n");
 
     write(serial_fd, data, len);
-    pthread_mutex_unlock(&write_mutex);
+}
+
+static int rx_data_callback(void *data, uint16_t *len, int wait_time_us)
+{
+    pthread_mutex_lock(&rx_data_mutex);
+
+    struct timeval t_start, t_end, t_diff;
+    gettimeofday(&t_start, NULL);
+
+    if (rx_data_packet_len == 0 && wait_time_us > 0) {
+        struct timespec time_to_wait;
+        time_to_wait.tv_nsec = (t_start.tv_usec + wait_time_us) * 1000LL;
+        time_to_wait.tv_sec = t_start.tv_sec + time_to_wait.tv_nsec / 1000000000uLL;
+        time_to_wait.tv_nsec %= 1000000000uLL;
+        // Not worried about spurious wakeups
+        pthread_cond_timedwait(&rx_data_cond, &rx_data_mutex, &time_to_wait);
+    }
+    *len = MIN(rx_data_packet_len, *len);
+    if (*len > 0) {
+        memcpy(data, rx_data_buf + rx_data_packet_index, *len);
+        rx_data_packet_len -= *len;
+        rx_data_packet_index += *len;
+    }
+
+    gettimeofday(&t_end, NULL);
+    timersub(&t_end, &t_start, &t_diff);
+    wait_time_us = t_diff.tv_sec * 1000000LL + t_diff.tv_usec;
+
+    pthread_mutex_unlock(&rx_data_mutex);
+
+    return wait_time_us;
 }
 
 static void *serial_read_thread_function(void *ptr) {
@@ -232,11 +269,19 @@ static void *serial_read_thread_function(void *ptr) {
         // read up to 256 characters if ready to read
         uint8_t buf[256];
         int n = read(serial_fd, buf, sizeof(buf));
+
         if (n > 0) {
-            int processed_len = 0;
-            while (processed_len < n) {
-                processed_len += mcp_host_receive_data(buf + processed_len, n - processed_len);
-            }
+            pthread_mutex_lock(&rx_data_mutex);
+
+            // Circular buffer would be better...
+            if (rx_data_packet_len == 0)
+                rx_data_packet_index = 0;
+            n = MIN((unsigned)n, sizeof(rx_data_buf) - rx_data_packet_index);
+            memcpy(rx_data_buf + rx_data_packet_index, buf, n);
+            rx_data_packet_len += n;
+
+            pthread_cond_signal(&rx_data_cond);
+            pthread_mutex_unlock(&rx_data_mutex);
 
 //            printf("RX:");
 //            for (uint16_t i = 0; i < n; i++)

@@ -86,6 +86,8 @@ typedef struct
     void *pData;
 } Mt_mpb_t;
 
+typedef int (*mt_process_rx_data_callback_t)(int wait_time_us);
+
 /******************************************************************************
  Constants and Definitions
  *****************************************************************************/
@@ -313,9 +315,7 @@ typedef struct
 /*!
  * @brief   Initialize the MT system for use with NPI system
  */
-extern void MT_init(void);
-
-extern void MT_deinit(void);
+extern void MT_init(mt_process_rx_data_callback_t process_rx_data_cb);
 
 extern bool MT_isAsyncCallback(const uint8_t *pBuf);
 

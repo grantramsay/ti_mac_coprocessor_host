@@ -110,10 +110,10 @@ mtProcessMsg_t mtProcessIncoming[MTRPC_SYS_MAX] =
 /******************************************************************************
  Local variables
  *****************************************************************************/
-static osal_mutex_t sync_response_mutex;
-static osal_semaphore_t sync_response_semaphore;
-static volatile uint16_t sync_response_length;
-static void *sync_response_value;
+static mt_process_rx_data_callback_t process_rx_data_callback = NULL;
+static bool sync_response_received;
+static uint16_t sync_response_length;
+static void *sync_response_buffer;
 static uint16_t sync_response_max_length;
 static uint8_t sync_response_type;
 static uint8_t sync_response_cmd;
@@ -134,18 +134,12 @@ static void processSyncResponse(Mt_mpb_t *pMpb);
 
  Public function defined in mt.h
  */
-void MT_init(void)
+void MT_init(mt_process_rx_data_callback_t process_rx_data_cb)
 {
     /* Set up extended command processor */
     MtExt_init();
 
-    osal_mutex_init(&sync_response_mutex);
-    osal_semaphore_init(&sync_response_semaphore);
-}
-
-void MT_deinit(void)
-{
-    osal_semaphore_deinit(&sync_response_semaphore);
+    process_rx_data_callback = process_rx_data_cb;
 }
 
 bool MT_isAsyncCallback(const uint8_t *pBuf)
@@ -272,27 +266,27 @@ uint8_t MT_sendResponse(uint8_t type, uint8_t cmd, uint16_t len, uint8_t *pRsp)
 bool MT_sendSyncRequest(uint8_t type, uint8_t cmd, uint16_t len, uint8_t *pReq,
                         uint8_t resType, uint8_t resCmd, uint16_t *resLen, uint8_t *pRes)
 {
-    osal_mutex_lock(&sync_response_mutex);
-    // Ensure semaphore is cleared
-    while (osal_semaphore_try_wait(&sync_response_semaphore));
+    if (process_rx_data_callback == NULL)
+        return false;
+
+    sync_response_received = false;
     sync_response_length = 0;
-    sync_response_value = pRes;
+    sync_response_buffer = pRes;
     sync_response_max_length = *resLen;
     sync_response_type = resType;
     sync_response_cmd = resCmd;
-    osal_mutex_unlock(&sync_response_mutex);
 
     MT_sendResponse(type, cmd, len, pReq);
 
     // Wait for response...
-    bool res = osal_semaphore_timed_wait(&sync_response_semaphore, SYNC_RESPONSE_WAIT_TIME_MS * 1000uL);
+    int wait_time_us = SYNC_RESPONSE_WAIT_TIME_MS * 1000uL;
+    while (wait_time_us > 0 && !sync_response_received)
+        wait_time_us -= process_rx_data_callback(wait_time_us);
 
-    osal_mutex_lock(&sync_response_mutex);
-    *resLen = res ? sync_response_length : 0;
-    sync_response_value = NULL;
-    osal_mutex_unlock(&sync_response_mutex);
+    *resLen = sync_response_received ? sync_response_length : 0;
+    sync_response_buffer = NULL;
 
-    return res;
+    return sync_response_received;
 }
 
 /******************************************************************************
@@ -338,15 +332,12 @@ static uint8_t sendNpiMessage(Mt_mpb_t *pMpb)
     return(err);
 }
 
-static void processSyncResponse(Mt_mpb_t *pMpb) {
-    osal_mutex_lock(&sync_response_mutex);
-    // Checking semaphore count is to not overwrite the response if we've already posted one
-    if (osal_semaphore_get_value(&sync_response_semaphore) == 0 &&
-            pMpb->cmd0 == sync_response_type && pMpb->cmd1 == sync_response_cmd) {
+static void processSyncResponse(Mt_mpb_t *pMpb)
+{
+    if (pMpb->cmd0 == sync_response_type && pMpb->cmd1 == sync_response_cmd) {
         sync_response_length = pMpb->length;
-        if (sync_response_value != NULL)
-            memcpy(sync_response_value, pMpb->pData, MIN(pMpb->length, sync_response_max_length));
-        osal_semaphore_post(&sync_response_semaphore);
+        if (sync_response_buffer != NULL)
+            memcpy(sync_response_buffer, pMpb->pData, MIN(pMpb->length, sync_response_max_length));
+        sync_response_received = true;
     }
-    osal_mutex_unlock(&sync_response_mutex);
 }
